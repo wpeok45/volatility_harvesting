@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  app:
+    image: python:3.10.17-slim
+    restart: "always"
+    logging:
+      options:
+        max-size: "20m"
+        max-file: "10"
+    environment:
+      PYTHONUNBUFFERED: 1
+
+      API_KEY: "XXXXXXXXXXXXXXXXXX"
+      SECRET_KEY: "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+      STABLE_PAIR: "USDT"
+      MA_LENGTH: 24         # trading signals length for MA, EMA
+      RANGE: 40000.0        # ratio_per_point = 1.0 / RANGE (each price tick changes portfolio ratio like ratio +(-) ratio_per_point)
+      MIN_RATIO: 0.02       # minimum portfolio bitcoin to stablecoin ratio 3% / 97%
+      MAX_RATIO: 0.98       # maximum portfolio bitcoin to stablecoin ratio 97% /3%
+      REBALANCE_AT: 7.0     # percent change to make rebalance
+      TGBOT_TOKEN: ""
+      TGBOT_CHATID: ""
+
+    volumes:
+      - ./:/app
+
+    working_dir: /app
+    command: sh -c "pip install -r requirements.txt
+      && python run_app.py"
+
+
+
+
+
+# docker-compose down && docker-compose build && docker-compose up -d
+# docker logs -f --tail 100 pw_server_v2-pw-1
+
+
