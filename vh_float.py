@@ -1563,5 +1563,4 @@ if __name__ == "__main__":
     main_loop.create_task(tr.ws_user_data())
     main_loop.create_task(tr.account_balance_loop())
     main_loop.create_task(tr.save_history_loop())
-    #main_loop.run_forever()
     main_loop.run_until_complete(tr.trade_loop())
