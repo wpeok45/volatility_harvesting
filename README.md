@@ -1,4 +1,4 @@
-#Volatility harvesting (floating percent)
+# Volatility harvesting (floating percent)
 
 Сбор волатильности на самом деле не сложная стратегия, но требующая переоценки
 отношения к движению цен на рынке.
