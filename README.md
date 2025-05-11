@@ -2,6 +2,14 @@
 
 ![alt text](pnl.png)
 
+# installation
+pip install -r requirements.txt
+
+# prepare to run
+
+# run
+python3 vh_float.py
+
 Сбор волатильности на самом деле не сложная стратегия, но требующая переоценки
 отношения к движению цен на рынке.
 
