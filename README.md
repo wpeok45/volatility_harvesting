@@ -54,8 +54,8 @@ BTC в портфеле через определенные периоды ил�
 
 Формула балансировки портфеля с нулевым риском:
 ```
-if BTC price = 0.01$ then portfel balance ratio = 100% (BTC) / 0% (USDT)
-if BTC price = ATH then portfel balance ratio = 0% (BTC) / 100% (USDT)
+if BTC price = 0.01$ then portfel balance ratio = 100% (BTC) | 0% (USDT)
+if BTC price = ATH then portfel balance ratio = 0% (BTC) | 100% (USDT)
 ```
 Ребаланс портфеля: 
 - продажу BTC проводим на приемлемом изменении процента, не менее 2% (если fee = 0.1)
@@ -64,8 +64,8 @@ if BTC price = ATH then portfel balance ratio = 0% (BTC) / 100% (USDT)
 
 Если мы хотим рискнуть для повышения прибыли, то можем ограничить диапазон на половину:
 ```
-if BTC price = ATH/2 $ then portfel balance ratio = 100% (BTC) / 0% (USDT)
-if BTC price = ATH then portfel balance ratio = 0% (BTC) / 100% (USDT)
+if BTC price = ATH/2 $ then portfel balance ratio = 100% (BTC) | 0% (USDT)
+if BTC price = ATH then portfel balance ratio = 0% (BTC) | 100% (USDT)
 ```
 
 Универсальней этой формулы трудно что-то себе представить.
