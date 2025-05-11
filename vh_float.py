@@ -24,8 +24,8 @@ SECRET_KEY = os.getenv("SECRET_KEY", "")
 STABLE_PAIR = os.getenv("STABLE_PAIR", "USDT")
 MA_LENGTH = float(os.getenv("MA_LENGTH", 24.0))  # trading signals length for MA, EMA
 RANGE = float(os.getenv("RANGE", 50000.0))  # ratio_per_point = 1.0 / RANGE (each price tick changes portfolio ratio like ratio +(-) ratio_per_point)
-MIN_RATIO = float(os.getenv("MIN_RATIO", 0.01))  # minimum portfolio bitcoin to stablecoin ratio 3% / 97%
-MAX_RATIO = float(os.getenv("MAX_RATIO", 0.99))  # maximum portfolio bitcoin to stablecoin ratio 97% /3%
+MIN_RATIO = float(os.getenv("MIN_RATIO", 0.01))  # minimum portfolio bitcoin to stablecoin ratio 1% / 99%
+MAX_RATIO = float(os.getenv("MAX_RATIO", 0.99))  # maximum portfolio bitcoin to stablecoin ratio 99% /1%
 REBALANCE_TOP = float(os.getenv("REBALANCE_TOP", 7.0))  # % rebalance(SELL)
 REBALANCE_BOTTOM = float(os.getenv("REBALANCE_BOTTOM", 4.0))  # % rebalance(BUY)
 TGBOT_TOKEN = os.getenv("TGBOT_TOKEN", "")
