@@ -5,22 +5,24 @@
 Bybit api spot bot
 
 # installation
+```
 pip install -r requirements.txt
-
+```
 or 
-
+```
 python3 -m pip install -r requirements.txt
-
+```
 # prepare to run
 Change .env file with your Bybit api and Telegram bot keys (Telegram is optional)
 
 # run
+```
 python3 vh_float.py
-
+```
 or
-
+```
 run docker with docker-compose.yaml 
-
+```
 --------------
 Сбор волатильности на самом деле не сложная стратегия, но требующая переоценки
 отношения к движению цен на рынке.
