@@ -21,7 +21,7 @@ python3 vh_float.py
 ```
 or
 ```
-run docker with docker-compose.yaml 
+docker-compose build && docker-compose up -d
 ```
 --------------
 Сбор волатильности на самом деле не сложная стратегия, но требующая переоценки
