@@ -10,6 +10,7 @@ import decimal
 import hashlib
 import hmac
 import time
+import uuid
 import datetime
 import itertools
 import traceback
@@ -24,8 +25,8 @@ SECRET_KEY = os.getenv("SECRET_KEY", "")
 STABLE_PAIR = os.getenv("STABLE_PAIR", "USDT")
 MA_LENGTH = float(os.getenv("MA_LENGTH", 24.0))  # trading signals length for MA, EMA
 RANGE = float(os.getenv("RANGE", 50000.0))  # ratio_per_point = 1.0 / RANGE (each price tick changes portfolio ratio like ratio +(-) ratio_per_point)
-MIN_RATIO = float(os.getenv("MIN_RATIO", 0.01))  # minimum portfolio bitcoin to stablecoin ratio 1% / 99%
-MAX_RATIO = float(os.getenv("MAX_RATIO", 0.99))  # maximum portfolio bitcoin to stablecoin ratio 99% /1%
+MIN_RATIO = float(os.getenv("MIN_RATIO", 0.01))  # minimum portfolio bitcoin to stablecoin ratio 3% / 97%
+MAX_RATIO = float(os.getenv("MAX_RATIO", 0.99))  # maximum portfolio bitcoin to stablecoin ratio 97% /3%
 REBALANCE_TOP = float(os.getenv("REBALANCE_TOP", 7.0))  # % rebalance(SELL)
 REBALANCE_BOTTOM = float(os.getenv("REBALANCE_BOTTOM", 4.0))  # % rebalance(BUY)
 TGBOT_TOKEN = os.getenv("TGBOT_TOKEN", "")
@@ -131,7 +132,7 @@ class WSClient:
                         await ws.send_str(json.dumps(data, ensure_ascii=False), compress=None)
                         await asyncio.sleep(1.0)
 
-                    await ws.send_str(json.dumps(subscribe))
+                    await ws.send_str(json.dumps(subscribe))  # , ensure_ascii=False))
 
                     await asyncio.sleep(1.0)
 
@@ -371,6 +372,7 @@ class TradeAnalyse:
         self.work_range = RANGE
         self.ratio_per_point = 1.0 / self.work_range
         self.min_max_ratio = [MIN_RATIO, MAX_RATIO]
+        self.real_ratio = 0.0
         self.portfolio_ratio = self.min_max_ratio[0]
         self.percent_diff = 0.0
         self.bot_token = TGBOT_TOKEN
@@ -387,7 +389,7 @@ class TradeAnalyse:
         buy_amnt = round(price_for_pips * buy_pips, 2)
 
         print(
-            f"---------------Volatility harvesting------------\n" f"stable_pair: {STABLE_PAIR}\n" f"ma_length: {MA_LENGTH}\n" f"range: {RANGE}\n" f"min_ratio: {MIN_RATIO} ({float(MIN_RATIO) * 100.0}%)\n" f"max_ratio: {MAX_RATIO} ({float(MAX_RATIO) * 100.0}%)\n" f"buy at: -{self.rebalance_bottom}% (-{buy_pips} pips or -{buy_amnt} {self.pair[1]})\n" f"sell at: {self.rebalance_top}% ({sell_pips} pips or {sell_amnt} {self.pair[1]})\n" f"tg bot_chatID: {self.bot_chatID}\n" f"------------------------------------------------------",
+            f"---------------Volatility harvesting------------\n" f"tg bot_chatID: {self.bot_chatID}\n" f"stable_pair: {STABLE_PAIR}\n" f"ma_length: {MA_LENGTH}\n" f"range: {RANGE}\n" f"min_ratio: {MIN_RATIO} ({float(MIN_RATIO) * 100.0}%)\n" f"max_ratio: {MAX_RATIO} ({float(MAX_RATIO) * 100.0}%)\n" f"rebalance params:\n" f"  buy at: -{self.rebalance_bottom}% (-{buy_pips} pips or -{buy_amnt} {self.pair[1]})\n" f"  sell at: {self.rebalance_top}% ({sell_pips} pips or {sell_amnt} {self.pair[1]})\n" f"------------------------------------------------------",
         )
 
     def sma(self, deq: deque, price, temp=False):
@@ -518,7 +520,14 @@ class TradeAnalyse:
                 self.trade_profit, self.price_diff, self.percent_diff, self.portfolio_ratio = self.count_profit(price, self.portfolio_ratio)
 
             print(
-                f"{int(price)}, " f"impuls:{self.impuls}|{self.impuls_fmean}, " f"ratio: {round(self.portfolio_ratio * 100.0, 2)}% ({round(self.percent_diff, 2)}%), " f"mean: {round(self.buy_price_mean, 1)}, " f"pnl: {round(self.native_balance[0]*price - self.native_balance[0]*self.buy_price_mean, 1)} {self.pair[1]}, " f"trend: {round(self.ma_trend - self.ma_trend_prev, 1)} (EMA:{round(self.ma_fast_m - self.ma_trend, 1)}), " f"price diff: {round(abs(self.price_diff), 2)} > local range: {self.local_range}, " f"rebalance: {round(self.trade_profit, 2)} {self.pair[1]}",
+                f"{int(price)}, " 
+                f"impuls:{self.impuls}|{self.impuls_fmean}, " 
+                f"spot cost: {round(self.buy_price_mean, 1)}, " 
+                f"pnl: {round(self.native_balance[0]*price - self.native_balance[0]*self.buy_price_mean, 1)} {self.pair[1]}, " 
+                f"trend: {round(self.ma_trend - self.ma_trend_prev, 1)} (EMA:{round(self.ma_fast_m - self.ma_trend, 1)}), " 
+                f"spread: {round(abs(self.price_diff), 2)} > local range: {self.local_range}, " 
+                f"target ratio: {round(self.portfolio_ratio * 100.0, 2)}%, " 
+                f"rebalance: {round(self.percent_diff, 2)}% ({round(self.trade_profit, 2)} {self.pair[1]})",
             )
 
 
@@ -645,10 +654,10 @@ class Trader:
         self.ta.pair_balance[self.pair[1]] = native[1]
 
         total = sum(self.ta.pair_balance.values())
-        ratio = round(self.ta.pair_balance[self.pair[0]] / total * 100.0, 2)
+        self.ta.real_ratio = round(self.ta.pair_balance[self.pair[0]] / total * 100.0, 2)
 
         print(
-            f"    {self.pair[0]}: {round(self.ta.pair_balance[self.pair[0]], 2)} ({ratio} %), " f"{self.pair[1]}: {round(self.ta.pair_balance[self.pair[1]], 2)} ({round(100.0 - ratio, 2)} %), " f"total:{round(total, 2)}",
+            f"            Balance: {self.pair[0]}: {round(self.ta.pair_balance[self.pair[0]], 2)} ({self.ta.real_ratio} %), " f"{self.pair[1]}: {round(self.ta.pair_balance[self.pair[1]], 2)} ({round(100.0 - self.ta.real_ratio, 2)} %), " f"total:{round(total, 2)}",
         )
 
     def message_handler(self, msg):
