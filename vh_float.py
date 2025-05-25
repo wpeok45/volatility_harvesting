@@ -10,9 +10,7 @@ import decimal
 import hashlib
 import hmac
 import time
-import uuid
 import datetime
-import itertools
 import traceback
 import statistics
 import dotenv
@@ -24,11 +22,11 @@ API_KEY = os.getenv("API_KEY", "")
 SECRET_KEY = os.getenv("SECRET_KEY", "")
 STABLE_PAIR = os.getenv("STABLE_PAIR", "USDT")
 MA_LENGTH = float(os.getenv("MA_LENGTH", 24.0))  # trading signals length for MA, EMA
-RANGE = float(os.getenv("RANGE", 50000.0))  # ratio_per_point = 1.0 / RANGE (each price tick changes portfolio ratio like ratio +(-) ratio_per_point)
-MIN_RATIO = float(os.getenv("MIN_RATIO", 0.01))  # minimum portfolio bitcoin to stablecoin ratio 3% / 97%
-MAX_RATIO = float(os.getenv("MAX_RATIO", 0.99))  # maximum portfolio bitcoin to stablecoin ratio 97% /3%
+RANGE = float(os.getenv("RANGE", 50.0))          # range = 50% of ATH, ratio_per_point = 1.0 / RANGE (each price tick changes portfolio ratio like ratio +(-) ratio_per_point)
+MIN_RATIO = float(os.getenv("MIN_RATIO", 0.01))  # minimum portfolio bitcoin to stablecoin ratio 1% / 97%
+MAX_RATIO = float(os.getenv("MAX_RATIO", 0.99))  # maximum portfolio bitcoin to stablecoin ratio 99% /3%
 REBALANCE_TOP = float(os.getenv("REBALANCE_TOP", 7.0))  # % rebalance(SELL)
-REBALANCE_BOTTOM = float(os.getenv("REBALANCE_BOTTOM", 4.0))  # % rebalance(BUY)
+REBALANCE_BOTTOM = float(os.getenv("REBALANCE_BOTTOM", 3.0))  # % rebalance(BUY)
 TGBOT_TOKEN = os.getenv("TGBOT_TOKEN", "")
 TGBOT_CHATID = os.getenv("TGBOT_CHATID", "")
 
@@ -54,8 +52,6 @@ class WSClient:
         self.key = key
         self.secret = secret
         self.stream_url = stream_url
-        self.sequence = itertools.cycle(range(1, 100000))
-
         resolver = aiohttp.resolver.AsyncResolver(nameservers=["1.1.1.1", "8.8.8.8"])
         connector = aiohttp.TCPConnector(loop=self.loop, family=socket.AF_INET, limit=100, ttl_dns_cache=30000, resolver=resolver)
         timeout = aiohttp.ClientTimeout(total=5)
@@ -176,13 +172,9 @@ class Client:
         self.key = key
         self.secret = secret
         self.base_url = base_url
-        self.sequence = itertools.cycle(range(1, 100000))
-
-        resolver = aiohttp.resolver.AsyncResolver(nameservers=["1.1.1.1", "8.8.8.8"])
-        connector = aiohttp.TCPConnector(loop=self.loop, family=socket.AF_INET, limit=100, ttl_dns_cache=300, resolver=resolver)
         timeout = aiohttp.ClientTimeout(total=5)
-        self.session = aiohttp.ClientSession(loop=self.loop, connector=connector, timeout=timeout)
-
+        self.session = aiohttp.ClientSession(loop=self.loop, timeout=timeout)
+        
     def genSignature(self, payload, time_stamp, recv_window):
         param_str = str(time_stamp) + self.key + recv_window + payload
         hash = hmac.new(bytes(self.secret, "utf-8"), param_str.encode("utf-8"), hashlib.sha256)
@@ -369,7 +361,8 @@ class TradeAnalyse:
 
         self.rebalance_top = REBALANCE_TOP
         self.rebalance_bottom = REBALANCE_BOTTOM
-        self.work_range = RANGE
+        self.ATH = 111000.0
+        self.work_range = self.ATH / 100.0 * RANGE 
         self.ratio_per_point = 1.0 / self.work_range
         self.min_max_ratio = [MIN_RATIO, MAX_RATIO]
         self.real_ratio = 0.0
@@ -377,8 +370,12 @@ class TradeAnalyse:
         self.percent_diff = 0.0
         self.bot_token = TGBOT_TOKEN
         self.bot_chatID = TGBOT_CHATID
-
+        
+        
     def print_setup(self, price: float):
+        if self.work_range == 0.0:
+            return
+        
         sell_pips = round(self.work_range / 100 * (self.rebalance_top), 2)
         buy_pips = round(self.work_range / 100 * (self.rebalance_bottom), 2)
 
@@ -389,7 +386,19 @@ class TradeAnalyse:
         buy_amnt = round(price_for_pips * buy_pips, 2)
 
         print(
-            f"---------------Volatility harvesting------------\n" f"tg bot_chatID: {self.bot_chatID}\n" f"stable_pair: {STABLE_PAIR}\n" f"ma_length: {MA_LENGTH}\n" f"range: {RANGE}\n" f"min_ratio: {MIN_RATIO} ({float(MIN_RATIO) * 100.0}%)\n" f"max_ratio: {MAX_RATIO} ({float(MAX_RATIO) * 100.0}%)\n" f"rebalance params:\n" f"  buy at: -{self.rebalance_bottom}% (-{buy_pips} pips or -{buy_amnt} {self.pair[1]})\n" f"  sell at: {self.rebalance_top}% ({sell_pips} pips or {sell_amnt} {self.pair[1]})\n" f"------------------------------------------------------",
+            f"---------------Volatility harvesting------------\n"
+            f"tg bot_chatID: {self.bot_chatID}\n"
+            f"stable_pair: {STABLE_PAIR}\n"
+            f"ATH: {self.ATH}\n"
+            f"ma_length: {MA_LENGTH}\n"
+            f"range: {RANGE}% ({int(self.work_range)} pips)\n"
+            f"pip cost: {price_for_pips} {self.pair[1]}\n"
+            f"min_ratio: {MIN_RATIO} ({float(MIN_RATIO) * 100.0}%)\n"
+            f"max_ratio: {MAX_RATIO} ({float(MAX_RATIO) * 100.0}%)\n"
+            f"rebalance params:\n"
+            f"  buy at: -{self.rebalance_bottom}% (-{buy_pips} pips or -{buy_amnt} {self.pair[1]})\n"
+            f"  sell at: {self.rebalance_top}% ({sell_pips} pips or {sell_amnt} {self.pair[1]})\n"
+            f"------------------------------------------------------"
         )
 
     def sma(self, deq: deque, price, temp=False):
@@ -477,6 +486,10 @@ class TradeAnalyse:
         return ratio
 
     def count_profit(self, price: float, portfolio_ratio):
+        if price > self.ATH:
+            self.ATH = price
+        self.work_range = self.ATH / 100.0 * RANGE
+        
         portfolio_ratio = self.count_portfolio(price, portfolio_ratio)
         current_btc_amount = self.native_balance[0] * price
         total = self.native_balance[0] * price + self.native_balance[1]
@@ -558,6 +571,17 @@ class Trader:
 
         while True:
             try:
+                m720= await self.client.get_klines(symbol=self.symbol, interval="720")
+                # {
+                #     "retCode":0,
+                #     "retMsg":"OK",
+                #     "result":{
+                #         "category":"spot",
+                #         "symbol":"BTCUSDT",
+                #         "list":[
+                #             ["1747785600000","106855.3","107731.9","106187.8","107518.1","3057.888486","327543867.4335117"],
+                #             }
+                      
                 m1 = await self.client.get_klines(symbol=self.symbol, interval="1")
                 break
             except Exception as ex:
@@ -568,6 +592,13 @@ class Trader:
         if m1["retCode"] != 0:
             return
 
+        
+        # get ATH price for m720
+        data = m720["result"]["list"]
+        prices = list(map(lambda d: float(d[4]), data))                          
+        self.ta.ATH = max(prices)        
+        
+        # get 1m history        
         data = m1["result"]["list"]
         data.sort(key=lambda x: x[0])
         prices = list(map(lambda d: float(d[4]), data))
@@ -946,11 +977,9 @@ class Trader:
 
 if __name__ == "__main__":
     main_loop = asyncio.new_event_loop()
-
     tr = Trader(loop=main_loop, key=API_KEY, secret=SECRET_KEY)
 
     main_loop.run_until_complete(tr.initialize())
-
     main_loop.create_task(tr.ws_ticker())
 
     time.sleep(1.0)
