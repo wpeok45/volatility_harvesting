@@ -545,19 +545,20 @@ class TradeAnalyse:
 
 
 class Trader:
-    def __init__(self, loop: asyncio.AbstractEventLoop, key, secret) -> None:
+    def __init__(self, loop: asyncio.AbstractEventLoop, key: str, secret: str) -> None:
         self.loop = loop
         self.key = key
         self.secret = secret
-        self.client = Client(self.loop, base_url="https://api.bybit.com/", key=key, secret=secret)
+        self.client = None
         self.pair = ["BTC", STABLE_PAIR]
         self.symbol = "".join(self.pair)
         self.last_price = 0.0
         self.ta = TradeAnalyse(self.pair)
         self.minOrderQty = 0.000198
         self.minOrderAmt = 10.0
-
+    
     async def initialize(self):
+        self.client = Client(loop=self.loop, base_url="https://api.bybit.com/", key=self.key, secret=self.secret)
         self.client.session = aiohttp.ClientSession()
         self.client.session.headers.update(
             {
