@@ -61,13 +61,13 @@ BTC в портфеле через определенные периоды ил�
 
  ### Формула балансировки портфеля с нулевым риском:
 ```
-if BTC price = 0.01$ then portfel balance ratio = 100% (BTC) | 0% (USDT)
-if BTC price = ATH then portfel balance ratio = 0% (BTC) | 100% (USDT)
+if BTC price = 0.01$ then portfolio balance ratio = 100% (BTC) | 0% (USDT)
+if BTC price = ATH then portfolio balance ratio = 0% (BTC) | 100% (USDT)
 ```
 Если мы хотим рискнуть для повышения прибыли, то можем ограничить диапазон на половину:
 ```
-if BTC price = ATH/2 $ then portfel balance ratio = 100% (BTC) | 0% (USDT)
-if BTC price = ATH then portfel balance ratio = 0% (BTC) | 100% (USDT)
+if BTC price = ATH/2 $ then portfolio balance ratio = 100% (BTC) | 0% (USDT)
+if BTC price = ATH then portfolio balance ratio = 0% (BTC) | 100% (USDT)
 ```
 
 ### Volatility harvesting with floating ratio
