@@ -97,6 +97,4 @@ It is hard to imagine a formula more universal than this.
 It seems that effective traders and large funds follow it in the vast majority of cases.
 Even intraday traders on short ranges most likely intuitively adhere to this formula.
 
-Not financial advice. Use at your own risk.
-
-```
+This is not financial advice. Use at your own risk.
