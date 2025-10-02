@@ -2,9 +2,9 @@
 
 ![alt text](pnl.png)
 
-Bybit api spot bot
+Bybit API spot bot
 
-# installation
+# Installation
 ```
 pip install -r requirements.txt
 ```
@@ -12,10 +12,10 @@ or
 ```
 python3 -m pip install -r requirements.txt
 ```
-# prepare to run
-Change .env file with your Bybit api and Telegram bot keys (Telegram is optional)
+# Preparation
+Change the .env file with your Bybit API and Telegram bot keys (Telegram is optional)
 
-# run
+# Run
 ```
 python3 vh_float.py
 ```
@@ -24,47 +24,43 @@ or
 docker-compose build && docker-compose up -d
 ```
 --------------
-Сбор волатильности на самом деле не сложная стратегия, но требующая переоценки
-отношения к движению цен на рынке.
+Volatility harvesting is actually not a complicated strategy, but it requires a re-evaluation of the way we view price movements in the market.
 
-Она основывается на двух условиях:
-1. Вероятность движения цены вверх или вниз за n времени, всегда равна "подбросу монетки" или 50/50.
-    - мы намерено игнорируем все другие условия, считая их внешними ( например политическая обстановка, новости или манипуляции рынком)
-    - обьем рынка BTC и количество участников настолько огромно, что любое внешнее влияние неизбежно будет сбалансировано в той или иной мере.
-2. Экстремальные колебания цены( например 60k$, 16k$, 100k$) происходят в приемлемом временном диапазоне.
-    - это значит что периоды падения и подьема не длятся десятилетиями
+It is based on two conditions:
+1. The probability of the price moving up or down over n time is always equal to a "coin toss," or 50/50.
+    - We deliberately ignore all other conditions, considering them external (such as political events, news, etc.)
+    - The market volume of BTC and the number of participants is so huge that any external influence will inevitably be balanced out.
+2. Extreme price fluctuations (for example $60k, $16k, $100k) occur within a reasonable time frame.
+    - This means periods of decline and rise do not last for decades.
 
-Bitcoin хорошо соответствует этим условиям. Далее рассмотрим какие стратегии содержит внутри себя Volatility harvesting.
+Bitcoin fits these conditions well. Next, let's look at the strategies included in Volatility harvesting.
 ### HODL
-Что если бы мы покупали BTC обьемом 1$ за каждый пункт цены начиная от 10к до 60к, по мере её повышения.
-Мы бы заплатили 50000$ по средней цене 35к$ и были бы в хорошей прибыли. Это стандартная HODL стратегия.
-По мере снижения цены до 16к портфель понесет убытки.
+What if we bought BTC with $1 for every price point from $10k to $60k as it rises?
+We would pay $50,000 at an average price of $35k and would be in good profit. This is a standard HODL strategy.
+As the price drops to $16k, the portfolio will suffer losses.
 ### DCA
-Что если мы внесем небольшую коррекцию в HODL и будем продавать наш каждый купленый BTC(1$) если его цена увеличится на 10%.
-Это будет стандартная стратегия greed DCA
+What if we make a small adjustment to HODL and sell each purchased BTC ($1) if its price increases by a certain percent?
+This would be a standard DCA (Dollar Cost Averaging) strategy.
 ### VA
-Теперь попробуем покупать больше чем BTC(1$) и продавать меньше чем BTC(1$), по мере снижения цены и наоборот - покупать меньше и продавать больше
-по мере повышения цены. Это будет близко к стратегии DVA или VA
+Now, let's try buying more than BTC ($1) and selling less than BTC ($1) as the price decreases, and vice versa — buying less and selling more as the price increases. This will be similar to the DVA or VA strategy.
 
-Следует учесть что DCA и DVA считаются инвестиционными стратегиями. Тоесть попросту это способ входа на рынок, с помощью него постоянно увеличивают обьем
-BTC в портфеле через определенные периоды или через диапазоны изменения цены (например "по сетке")
+It should be noted that DCA and DVA are considered investment strategies. Simply put, it is a way to enter the market by accumulating BTC in the portfolio at specific periods or price change ranges (for example, "by grid").
 ### Volatility harvesting
-Мы просто следим чтобы портфель всегда был 50% / 50%.
-Проводя ребалансировку на изменении соотношения в портфеле. Например если цена актива выросла и стало 60% / 40%, то мы продаем 
-актив на 10%, тем самым восстанавливая баланс 50% / 50%.
+We just make sure the portfolio is always 50% / 50%.
+We rebalance when the ratio in the portfolio changes. For example, if the asset price increases and the ratio becomes 60% / 40%, we sell the asset by 10%, thereby restoring the balance to 50% / 50%.
 
-Очевидно что BTC у всех этих стратегий "залеживается на складе", говоря терминологией обычного магазина розничной торговли.
-Наша цель продать всё что мы покупали, с прибылью и как можно скорей и эффективней, как в swing trading.
-Мы не будем рассматривать стратегии где присутствует "ошибка выжившего", например основаных на тренде.
-Но хотелось бы чтобы работало "всё само по себе", без утомительного теханализа и чтения новостей.
-Нужна универсальная формула, полностью соблюдающая математические вероятности.
+Obviously, with all these strategies, BTC "sits in storage," using retail shop terminology.
+Our goal is to sell everything we bought, with profit and as quickly and efficiently as possible, as in swing trading.
+We will not consider strategies that rely on the "survivorship bias," such as trend-based ones.
+But ideally, everything should work "by itself," without tedious technical analysis and news reading.
+We need a universal formula that fully complies with mathematical probabilities.
 
- ### Формула балансировки портфеля с нулевым риском:
+ ### Portfolio balancing formula with zero risk:
 ```
-if BTC price = 0.01$ then portfolio balance ratio = 100% (BTC) / 0% (USDT)
+if BTC price = $0.01 then portfolio balance ratio = 100% (BTC) / 0% (USDT)
 if BTC price = ATH then portfolio balance ratio = 0% (BTC) / 100% (USDT)
 ```
-Если мы хотим рискнуть для повышения прибыли, то можем ограничить диапазон на половину:
+If you want to take more risk for higher profits, you can limit the range by half:
 ```
 if BTC price = ATH/2 $ then portfolio balance ratio = 100% (BTC) / 0% (USDT)
 if BTC price = ATH then portfolio balance ratio = 0% (BTC) / 100% (USDT)
@@ -72,34 +68,35 @@ if BTC price = ATH then portfolio balance ratio = 0% (BTC) / 100% (USDT)
 
 ### Volatility harvesting with floating ratio
 ```
-Начальное состояние портфеля BTC = 0.0, STABLE_PAIR = 1000.0 USD
+Initial portfolio state: BTC = 0.0, STABLE_PAIR = 1000.0 USD
 TOTAL_AMOUNT = 1000 USD
 BTC price = ATH (100000 USD)
 RATIO = 0.0
 RANGE = 100000
 
-Стоимость каждого pip цены:
+Value of each price pip:
     TOTAL_AMOUNT / RANGE = 0.01 USD
-    Если цена упадет на 1000 pips, то мы купим 1000 * ~0.01 = 10 USD
+    If the price drops by 1000 pips, we buy 1000 * ~0.01 = 10 USD
 
 RATIO_PER_PIP = 1.0 / RANGE = 0.00001
-Каждый тик будет менять соотношение в портфеле как RATIO +(-) RATIO_PER_PIP
-Допустим что цена упала на 500 pips:
-RATIO += 500 * 0.00001 = 0,005
-Теперь баланс в портфеле будет BTC = 0.5%, STABLE_PAIR = 99.5%
+Each tick will change the portfolio ratio as RATIO +(-) RATIO_PER_PIP
+Suppose the price dropped by 500 pips:
+RATIO += 500 * 0.00001 = 0.005
+Now the portfolio balance will be BTC = 0.5%, STABLE_PAIR = 99.5%
 ```
-На ATH у нас 0% / 100% и по мере снижения цены, у нас будет расти % слева и уменьшаться % справа
+At ATH we have 0% / 100%, and as the price falls, the left percentage increases and the right decreases.
 
-Когда производится Ребаланс портфеля: 
-- продажу BTC проводим на приемлемом изменении процента, не менее 2% (если fee = 0.1)
-- sell or buy делаем на разворотах цены, например по пересечению EMA24 и MA24
-- чтобы избежать ложного разворота проверяем локальный диапазон цены например за 2 часа.
+When to rebalance the portfolio:
+- Sell BTC when the percent changes by at least 2% (if fee = 0.1)
+- Sell or buy on price reversals, for example, when EMA24 and MA24 cross
+- To avoid false reversals, check the local price range, e.g., for 2 hours
 
 
 
-Универсальней этой формулы трудно что-то себе представить.
-Похоже что эффективные трейдеры и крупные фонды придерживаются ее в подавляющем большинстве случаев.
-Даже intraday трейдеры на коротких диапазонах, скорее всего интуитивно следуют этой формуле.
+It is hard to imagine a formula more universal than this.
+It seems that effective traders and large funds follow it in the vast majority of cases.
+Even intraday traders on short ranges most likely intuitively adhere to this formula.
 
-Не является финансовым советом. Используйте на свой страх и риск.
+Not financial advice. Use at your own risk.
 
+```
