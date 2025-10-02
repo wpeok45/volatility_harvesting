@@ -49,7 +49,7 @@ It should be noted that DCA and DVA are considered investment strategies. Simply
 We just make sure the portfolio is always 50% / 50%.
 We rebalance when the ratio in the portfolio changes. For example, if the asset price increases and the ratio becomes 60% / 40%, we sell the asset by 10%, thereby restoring the balance to 50% / 50%.
 
-It's clear that with all these strategies, BTC "just sitting on the shelf", to use retail terminology.
+It's clear that with all these strategies, BTC is just sitting on the shelf, to use retail terminology.
 Our goal is to sell everything we bought, with profit and as quickly and efficiently as possible, as in swing trading.
 We will not consider strategies that rely on the "survivorship bias," such as trend-based ones.
 But ideally, everything should work "by itself," without tedious technical analysis and news reading.
