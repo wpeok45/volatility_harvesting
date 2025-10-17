@@ -779,8 +779,10 @@ class TradeAnalyse:
                 f"rebalance: {round(self.percent_diff, 2)}% ({round(self.trade_profit, 2)} {self.pair[1]})"
             
             print(data)
+
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             with open("trading.log", mode='a', encoding='UTF-8') as f:
-                print(data, file=f)
+                print(f"[{timestamp}] {data}", file=f)
 
 class Trader:
     def __init__(self, loop: asyncio.AbstractEventLoop, key, secret) -> None:
