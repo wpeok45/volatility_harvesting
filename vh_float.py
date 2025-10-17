@@ -6,6 +6,7 @@ import socket
 import array as arr
 import json
 import math
+import cmath
 import decimal
 import hashlib
 import hmac
@@ -14,9 +15,10 @@ import datetime
 import traceback
 import statistics
 import dotenv
+from pathlib import Path
 from collections import deque
 
-dotenv.load_dotenv(override=False)
+dotenv.load_dotenv(override=True)
 
 API_KEY = os.getenv("API_KEY", "")
 SECRET_KEY = os.getenv("SECRET_KEY", "")
@@ -25,11 +27,13 @@ MA_LENGTH = float(os.getenv("MA_LENGTH", 24.0))  # trading signals length for MA
 RANGE = float(os.getenv("RANGE", 50.0))          # range = 50% of ATH, ratio_per_point = 1.0 / RANGE (each price tick changes portfolio ratio like ratio +(-) ratio_per_point)
 MIN_RATIO = float(os.getenv("MIN_RATIO", 0.01))  # minimum portfolio bitcoin to stablecoin ratio 1% / 97%
 MAX_RATIO = float(os.getenv("MAX_RATIO", 0.99))  # maximum portfolio bitcoin to stablecoin ratio 99% /3%
-REBALANCE_TOP = float(os.getenv("REBALANCE_TOP", 7.0))  # % rebalance(SELL)
+REBALANCE_TOP = float(os.getenv("REBALANCE_TOP", 3.0))  # % rebalance(SELL)
 REBALANCE_BOTTOM = float(os.getenv("REBALANCE_BOTTOM", 3.0))  # % rebalance(BUY)
+REBALANCE_ISDYNAMIC = os.getenv("REBALANCE_ISDYNAMIC", "false").lower() in ("true", "1", "yes", "y")
+AMPLITUDE_TIME_FRAME = int(os.getenv("AMPLITUDE_TIME_FRAME", 120))  # secundes, time frame for amplitude calculation
+FEE = float(os.getenv("FEE", 0.1))              # trading fee in percent, default 0.1%
 TGBOT_TOKEN = os.getenv("TGBOT_TOKEN", "")
 TGBOT_CHATID = os.getenv("TGBOT_CHATID", "")
-
 
 async def Fire_alert(bot_message: str, bot_token: str, bot_chatID: str):
     if bot_token == "" or bot_chatID == "":
@@ -45,6 +49,43 @@ async def Fire_alert(bot_message: str, bot_token: str, bot_chatID: str):
     except Exception as ex:
         print(f"ERROR: Fire_alert, {repr(traceback.extract_tb(ex.__traceback__))}")
 
+def rotate_log_file(log_file: str, max_files: int = 5, max_size_mb: float = 10.0):
+    """Rotate log file if it exceeds max size.
+    
+    Args:
+        log_file: Path to log file
+        max_files: Maximum number of rotated files to keep
+        max_size_mb: Maximum file size in MB before rotation
+    """
+    log_path = Path(log_file)
+    
+    # Check if file exists and size
+    if not log_path.exists():
+        return
+    
+    file_size_mb = log_path.stat().st_size / (1024 * 1024)
+    
+    if file_size_mb < max_size_mb:
+        return
+    
+    # Rotate existing backup files
+    for i in range(max_files - 1, 0, -1):
+        old_file = Path(f"{log_file}.{i}")
+        new_file = Path(f"{log_file}.{i + 1}")
+        
+        if old_file.exists():
+            if i + 1 >= max_files:
+                # Delete oldest file
+                old_file.unlink()
+            else:
+                # Rename to next number
+                old_file.rename(new_file)
+    
+    # Rename current log to .1
+    if log_path.exists():
+        log_path.rename(f"{log_file}.1")
+    
+    print(f"LOG ROTATED: {log_file} ({file_size_mb:.2f} MB)")
 
 class WSClient:
     def __init__(self, loop: asyncio.AbstractEventLoop, stream_url, key, secret):
@@ -300,7 +341,6 @@ class Crossunder:
             # if a - b < -1.0:
             if not self.cross:
                 self.cross = True
-                print(f"cross_under: {a}, {b}")
                 return True
         return False
 
@@ -318,27 +358,152 @@ class Crossover:
             # if a - b > 1.0:
             if not self.cross:
                 self.cross = True
-                print(f"cross_over: {a}, {b}")
                 return True
         return False
 
 
+class DynamicOrderScale:
+    """Manages dynamic scaling of buy/sell order percentages based on consecutive trades.
+    
+    Supports both Fibonacci and linear scaling strategies.
+    """
+    
+    # Fibonacci sequence cache (class-level constant)
+    FIBONACCI_SEQUENCE = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610]
+    
+    def __init__(
+        self, 
+        min_buy_percent: float, 
+        min_sell_percent: float, 
+        use_fibonacci: bool = True
+    ) -> None:
+        """Initialize order scaler.
+        
+        Args:
+            min_buy_percent: Minimum buy percentage
+            min_sell_percent: Minimum sell percentage
+            use_fibonacci: Use Fibonacci sequence for scaling (default: True)
+        """
+        self.enabled = False
+        self.min_buy_percent = min_buy_percent
+        self.min_sell_percent = min_sell_percent
+        self.use_fibonacci = use_fibonacci
+        self._buy_counter = 1
+        self._sell_counter = 1
+    
+    @property
+    def buy_counter(self) -> int:
+        """Current buy counter."""
+        return self._buy_counter
+    
+    @buy_counter.setter
+    def buy_counter(self, value: int) -> None:
+        """Set buy counter with validation."""
+        if value < 1:
+            self._buy_counter = 1
+        elif value > len(self.FIBONACCI_SEQUENCE):
+            self._buy_counter = len(self.FIBONACCI_SEQUENCE)
+        else:
+            self._buy_counter = value
+
+    @property
+    def sell_counter(self) -> int:
+        """Current sell counter."""
+        return self._sell_counter
+    
+    @sell_counter.setter
+    def sell_counter(self, value: int) -> None:
+        """Set sell counter with validation."""
+        if value < 1:
+            self._sell_counter = 1
+        elif value > len(self.FIBONACCI_SEQUENCE):
+            self._sell_counter = len(self.FIBONACCI_SEQUENCE)
+        else:
+            self._sell_counter = value
+
+    def _get_multiplier(self, counter: int) -> float:
+        """Get scaling multiplier for given counter.
+        
+        Args:
+            counter: Counter value (1-indexed)
+            
+        Returns:
+            Multiplier value from Fibonacci or linear sequence
+        """
+        if not self.use_fibonacci:
+            return counter
+        
+        # Convert 1-indexed to 0-indexed for array access
+        index = counter - 1
+        
+        # Safely get Fibonacci value
+        if index >= len(self.FIBONACCI_SEQUENCE):
+            return self.FIBONACCI_SEQUENCE[-1]
+        
+        return self.FIBONACCI_SEQUENCE[index]
+    
+    def increment_buy(self) -> None:
+        """Increase buy scale, decrease sell scale."""
+        self._buy_counter = min(self._buy_counter + 1, len(self.FIBONACCI_SEQUENCE))
+        self._sell_counter = max(self._sell_counter - 1, 1)
+    
+    def increment_sell(self) -> None:
+        """Increase sell scale, decrease buy scale."""
+        self._sell_counter = min(self._sell_counter + 1, len(self.FIBONACCI_SEQUENCE))
+        self._buy_counter = max(self._buy_counter - 1, 1)
+    
+    def get_buy_percent(self) -> float:
+        """Calculate current buy percentage based on counter.
+        
+        Returns:
+            Scaled buy percentage
+        """
+        if not self.enabled:
+            return self.min_buy_percent
+        
+        multiplier = self._get_multiplier(self._buy_counter)
+        return self.min_buy_percent * multiplier
+    
+    def get_sell_percent(self) -> float:
+        """Calculate current sell percentage based on counter.
+        
+        Returns:
+            Scaled sell percentage
+        """
+        if not self.enabled:
+            return self.min_sell_percent
+        
+        multiplier = self._get_multiplier(self._sell_counter)
+        return self.min_sell_percent * multiplier
+    
+    def reset(self) -> None:
+        """Reset counters to initial state."""
+        self._buy_counter = 1
+        self._sell_counter = 1
+    
+    def __repr__(self) -> str:
+        """String representation for debugging."""
+        return (
+            f"DynamicOrderScale("
+            f"enabled={self.enabled}, "
+            f"buy={self.buy_counter}, "
+            f"sell={self.sell_counter}, "
+            f"fibonacci={self.use_fibonacci})"
+        )
+
+
 class TradeAnalyse:
     def __init__(self, pair) -> None:
-        self.prices_m1 = deque(maxlen=30)
-        self.prices = deque(maxlen=60 * 60 * 5)
+        self.prices = deque(maxlen=60 * 60 * 24)
         self.diffs = deque(maxlen=3)
-        self.diffs_pool = deque(maxlen=60 * 3)
-        self.power_neg = 0.0
-        self.power_pos = 0.0
-        self.power_max = 0.0
+        self.diffs_pool = deque(maxlen=int(60 * 15))
+        self.min_impuls = 0.0
+        self.power_pos = 0
+        self.power_neg = 0
         self.impuls = 0.0
-        self.impuls_pos = 0.0
-        self.impuls_neg = 0.0
-        self.impuls_fmean = 0.0
-        self.trend = 0.0
-        self.trend_percent = 0.0
-        self.trend_percent_harmonic = 0.0
+        self.impuls_harmonic = 0.0
+        self.impuls_percent = 0.0
+        self.impuls_harmonic_percent = 0.0
         self.pair = pair
         self.pair_balance = dict()
         self.native_balance = (0.0, 0.0)
@@ -348,7 +513,7 @@ class TradeAnalyse:
         self.m1_timer = 0.0
         self.buy_price_mean = 0.0
         self.local_range = 1000.0
-        self.local_range_win = deque(maxlen=120)
+        self.local_range_win = deque(maxlen=AMPLITUDE_TIME_FRAME)
         self.ma_lenght = MA_LENGTH
         self.gap = self.ma_lenght / 4.8
         self.ma_fast = 0.0
@@ -358,10 +523,13 @@ class TradeAnalyse:
         self.ma_trend_win = deque(maxlen=int(self.ma_lenght))
         self.trend_crossover = Crossover()
         self.trend_crossunder = Crossunder()
-
         self.rebalance_top = REBALANCE_TOP
         self.rebalance_bottom = REBALANCE_BOTTOM
-        self.ATH = 111000.0
+        self.min_profitable_percent = REBALANCE_TOP
+        self.order_scale = DynamicOrderScale(self.rebalance_bottom, self.rebalance_top)
+        self.order_scale.enabled = REBALANCE_ISDYNAMIC
+        self.fee = FEE / 100.0 # 0.1% = 0.001
+        self.ATH = 999000.0
         self.work_range = self.ATH / 100.0 * RANGE 
         self.ratio_per_point = 1.0 / self.work_range
         self.min_max_ratio = [MIN_RATIO, MAX_RATIO]
@@ -371,36 +539,43 @@ class TradeAnalyse:
         self.bot_token = TGBOT_TOKEN
         self.bot_chatID = TGBOT_CHATID
         
-        
-    def print_setup(self, price: float):
-        if self.work_range == 0.0:
-            return
-        
-        sell_pips = round(self.work_range / 100 * (self.rebalance_top), 2)
-        buy_pips = round(self.work_range / 100 * (self.rebalance_bottom), 2)
+    def fft(self, x):
+        N = len(x)
+        if N <= 1:
+            return x
+        even = self.fft(x[0::2])
+        odd = self.fft(x[1::2])
+        T = [cmath.exp(-2j * cmath.pi * k / N) * odd[k] for k in range(N // 2)]
+        return [even[k] + T[k] for k in range(N // 2)] + \
+            [even[k] - T[k] for k in range(N // 2)]
 
-        total = self.native_balance[0] * price + self.native_balance[1]
-        price_for_pips = total / self.work_range
+    def calculate_avg_amplitude(self, data):
+        spectrum = self.fft(data)
+        amplitudes = [abs(x) for x in spectrum[1:]]
 
-        sell_amnt = round(price_for_pips * sell_pips, 2)
-        buy_amnt = round(price_for_pips * buy_pips, 2)
+        half = len(amplitudes) // 2
+        positive_amplitudes = amplitudes[:half]
 
-        print(
-            f"---------------Volatility harvesting------------\n"
-            f"tg bot_chatID: {self.bot_chatID}\n"
-            f"stable_pair: {STABLE_PAIR}\n"
-            f"ATH: {self.ATH}\n"
-            f"ma_length: {MA_LENGTH}\n"
-            f"range: {RANGE}% ({int(self.work_range)} pips)\n"
-            f"pip cost: {price_for_pips} {self.pair[1]}\n"
-            f"min_ratio: {MIN_RATIO} ({float(MIN_RATIO) * 100.0}%)\n"
-            f"max_ratio: {MAX_RATIO} ({float(MAX_RATIO) * 100.0}%)\n"
-            f"rebalance params:\n"
-            f"  buy at: -{self.rebalance_bottom}% (-{buy_pips} pips or -{buy_amnt} {self.pair[1]})\n"
-            f"  sell at: {self.rebalance_top}% ({sell_pips} pips or {sell_amnt} {self.pair[1]})\n"
-            f"------------------------------------------------------"
-        )
+        average_amplitude = sum(positive_amplitudes) / len(positive_amplitudes)
 
+        return average_amplitude
+
+    def get_profitable_range(self, price: float):
+        # 1000 / 118000 = 0,008474576               fee = 1.0
+        # 0,008474576 * 118010 = 1000,08471376     fee = 1.0
+        # 1000,08471376 − 1000 = 0,08471376
+        # (2,0 ÷ 0,08471376) * 10 = 236,894521293 pips
+
+        # 118237 / 1001.940338
+        # 118000 / 999.932
+        # 1001.940338 − 999.932 = 2,008338
+
+        fee_amount = 1000.0 * self.fee * 2.0
+        val = 1000.0 / price
+        val_up_one = val * (price + 1.0)
+        val_one_pip = val_up_one - 1000.0
+        return fee_amount / val_one_pip
+  
     def sma(self, deq: deque, price, temp=False):
         if temp:
             win = list(deq)[1:]
@@ -416,65 +591,54 @@ class TradeAnalyse:
             prev = prev_ema
         return (price - prev_ema) * (2 / (period + 1)) + prev
 
-    def count_impuls(self, price: float):
-        if len(self.prices) < 4:
-            self.prices.append(price)
-            return
-        diff = round(price - self.prices[-1], 4)
-        self.diffs.append(diff)
-        self.impuls = round(sum(self.diffs), 2)
-
+    def append_diff(self, price: float):
+        impuls = price - self.prices[-1]
+        if impuls != 0.0:
+            self.diffs_pool.append(impuls)
+        
     def count_power_s1(self, price: float):
         if len(self.prices) < 4:
             return
-
-        self.diffs_pool.append(price - self.prices[-1])
-
-        if len(self.diffs_pool) < 5:
+        self.append_diff(price)
+        
+        if len(self.diffs_pool) < 4:
             return
+        
+        abs_diffs_pool = list(map(lambda x: math.fabs(x), self.diffs_pool))
+        abs_diffs_pool.sort(reverse=True)
+        pos = len(abs_diffs_pool)//10
 
-        positive = list(filter(lambda n: n > 0.0, self.diffs_pool))
-        neg_list = list(filter(lambda n: n < 0.0, self.diffs_pool))
+        self.min_impuls = abs_diffs_pool[pos]
+        
+        positive = list(filter(lambda n: n > self.min_impuls, self.diffs_pool))
+        neg_list = list(filter(lambda n: n < -self.min_impuls, self.diffs_pool))
         negative = list(map(lambda x: math.fabs(x), neg_list))
 
         self.power_pos = len(positive)
         self.power_neg = len(negative)
 
-        if self.power_pos > 0:
-            if self.power_neg > 0:
-                self.trend = round(self.power_pos - math.fabs(self.power_neg), 3)
-                one_percent = (self.power_pos + math.fabs(self.power_neg)) / 100.0
-                self.trend_percent = round(self.power_pos / one_percent, 2)
+        if self.power_pos > 1:
+            if self.power_neg > 1:
+                self.impuls = self.power_pos - self.power_neg
+                self.impuls_percent = round(self.power_pos / (self.power_pos + self.power_neg) * 100 - 50.0 , 2)
 
-            self.impuls_pos = statistics.harmonic_mean(positive)
-            self.impuls_neg = statistics.harmonic_mean(negative)
-            self.impuls_fmean = round(statistics.fmean(self.diffs_pool), 3)
-            self.trend_percent_harmonic = round(self.impuls_pos / (self.impuls_pos + self.impuls_neg) * 100, 2)
+                impuls_pos = statistics.harmonic_mean(positive) 
+                impuls_neg = statistics.harmonic_mean(negative)
 
-    def count_power(self, price: float):
+                self.impuls_harmonic = round(impuls_pos - impuls_neg, 2)
+     
+                self.impuls_harmonic_percent = round(impuls_pos / (impuls_pos + impuls_neg) * 100 - 50.0, 2)
 
-        if len(self.prices_m1) < 4:
-            self.prices_m1.append(price)
-            return
+    def change_portfolio_ratio(self, price, ratio):
+        if self.ATH == 999000.0:
+            return 1.0
+        
+        if price > self.ATH:
+            self.ATH = price
 
-        self.diffs_pool.append(price - self.prices_m1[-1])
-        self.prices_m1.append(price)
-
-        if len(self.diffs_pool) < 10:
-            return
-
-        self.power_pos = len(list(filter(lambda n: n > 0.0, self.diffs_pool)))
-        self.power_neg = len(list(filter(lambda n: n < 0.0, self.diffs_pool)))
-
-        if self.power_pos:
-            if self.power_neg is not None:
-                self.trend = round(self.power_pos - math.fabs(self.power_neg), 3)
-                one_percent = (self.power_pos + math.fabs(self.power_neg)) / 100.0
-
-                self.trend_percent = round(self.power_pos / one_percent, 2)
-                self.power_max = max([math.fabs(self.power_neg), self.power_pos])
-
-    def count_portfolio(self, price, ratio):
+        self.work_range = self.ATH / 100.0 * RANGE 
+        self.ratio_per_point = 1.0 / self.work_range
+        
         ratio += (self.prices[-2] - price) * self.ratio_per_point
 
         if ratio < self.min_max_ratio[0]:
@@ -485,31 +649,103 @@ class TradeAnalyse:
 
         return ratio
 
-    def count_profit(self, price: float, portfolio_ratio):
-        if price > self.ATH:
-            self.ATH = price
-        self.work_range = self.ATH / 100.0 * RANGE
-        
-        portfolio_ratio = self.count_portfolio(price, portfolio_ratio)
+    def calculate_profit(self, price: float):
         current_btc_amount = self.native_balance[0] * price
-        total = self.native_balance[0] * price + self.native_balance[1]
-        target_btc_val = total * portfolio_ratio
+        total = current_btc_amount + self.native_balance[1]
+        target_btc_amount = total * self.portfolio_ratio
 
         # calculate the difference between the expected and current balance
-        trade_profit = current_btc_amount - target_btc_val
-        percent_diff = trade_profit / total * 100.0
+        self.trade_profit = current_btc_amount - target_btc_amount
+        self.percent_diff = self.trade_profit / total * 100.0
+        self.price_diff = price - self.traded_price
 
-        price_diff = price - self.traded_price
+    def print_setup(self, price: float):
+        if self.ATH == 999000.0:
+            return
+        # if self.trade_profit == 0.0:
+        #     return
 
-        return trade_profit, price_diff, percent_diff, portfolio_ratio
+        min_profitable_range = self.get_profitable_range(price)
+        one_percent_pips = self.work_range / 100.0
+        self.min_profitable_percent = min_profitable_range / one_percent_pips
 
+        if self.rebalance_top < self.min_profitable_percent:
+            self.order_scale.min_sell_percent = self.rebalance_top
+
+        if self.rebalance_bottom < self.min_profitable_percent:
+            self.order_scale.min_buy_percent = self.rebalance_bottom
+
+        self.rebalance_top = self.order_scale.get_sell_percent()
+        self.rebalance_bottom = self.order_scale.get_buy_percent()
+        
+
+        sell_pips = round(one_percent_pips * self.rebalance_top, 2)
+        buy_pips = round(one_percent_pips * self.rebalance_bottom, 2)
+
+        total = self.native_balance[0] * price + self.native_balance[1]
+        price_for_pips = total / self.work_range
+
+        one_percent_amnt = round(price_for_pips * one_percent_pips, 2)
+        sell_amnt = round(price_for_pips * sell_pips, 2)
+        buy_amnt = round(price_for_pips * buy_pips, 2)
+        
+        sell_value = sell_amnt / price
+        sell_amnt_old = sell_value * (price - sell_pips)
+        
+        sell_fee = sell_amnt * self.fee
+        revenue = round(sell_amnt - sell_amnt_old - sell_fee * 2.0, 3)
+        
+        # real_value = abs(self.trade_profit / price)
+        # real_amnt_old = real_value * (price - self.price_diff)
+        # real_fee = abs(self.trade_profit * self.fee)
+        # real_revenue = round(abs(self.trade_profit) - real_amnt_old - real_fee * 2.0, 2)
+        
+        
+
+        real_value = self.trade_profit / price
+        real_amnt_old = real_value * (price - self.price_diff)
+        real_fee = self.trade_profit * (self.fee * 2.0)
+        real_revenue = round(self.trade_profit - real_amnt_old - real_fee * 2.0, 3)
+        
+        data = f"---------------Volatility harvesting------------\n" \
+            f"tg bot_chatID: {self.bot_chatID}\n" \
+            f"stable_pair: {STABLE_PAIR}\n" \
+            f"ATH: {self.ATH}\n" \
+            f"ma_length: {MA_LENGTH}\n" \
+            f"range: {RANGE}% ({int(self.work_range)}) pips, lower price limit: {int(price - self.native_balance[1] / price_for_pips)} {self.pair[1]}\n" \
+            f"ratio per pip: {self.ratio_per_point:.8f}\n" \
+            f"pip cost: {round(price_for_pips, 2)} {self.pair[1]}\n" \
+            f"min_ratio: {MIN_RATIO} ({float(MIN_RATIO) * 100.0}%)\n" \
+            f"max_ratio: {MAX_RATIO} ({float(MAX_RATIO) * 100.0}%)\n" \
+            f"amplitude {self.local_range_win.maxlen / 60} h: {self.local_range} pips\n" \
+            f"rebalance params:\n" \
+            f"  1%: {round(one_percent_pips, 2)} pips ({one_percent_amnt} {self.pair[1]})\n" \
+            f"  min profitable pips: {round(min_profitable_range, 1)} ({round(self.min_profitable_percent, 2)}%)\n" \
+            f"  is dynamic rebalance: {self.order_scale.enabled}\n" \
+            f"  buy at: -{round(self.rebalance_bottom, 2)}% (-{buy_pips} pips or -{buy_amnt} {self.pair[1]})\n" \
+            f"  sell at: {round(self.rebalance_top, 2)}% ({sell_pips} pips or {sell_amnt} {self.pair[1]})\n" \
+            f"  min revenue: {revenue} {self.pair[1]}\n" \
+            f"  fee: {round(sell_fee * 2, 3)} {self.pair[1]}\n" \
+            f"now:\n" \
+            f"  spread: {round(self.price_diff, 2)} pips, {round(self.percent_diff, 2)} %, {round(self.trade_profit, 2)} {self.pair[1]}\n" \
+            f"  fee:{round(real_fee, 3)} {self.pair[1]} (buy+sell)\n"
+            
+        if self.price_diff > 0.0: 
+            data += f"  revenue: {real_revenue} {self.pair[1]}\n"
+            
+        data += f"------------------------------------------------------"
+            
+        print(data)
+        
     def monitor(self, price, m1_time, show=False):
         change = False
         if self.m1_timer != m1_time:
             change = True
             self.m1_timer = m1_time
-            self.print_setup(price)
 
+        self.count_power_s1(price)
+        self.prices.append(price)
+            
         if not show:
             self.local_range_win.append(price)
             self.ma_trend = round(self.sma(self.ma_trend_win, price), 2) - self.gap
@@ -517,11 +753,10 @@ class TradeAnalyse:
             return
 
         if show:
-            self.count_impuls(price)
-            self.count_power_s1(price)
-            self.prices.append(price)
+            self.portfolio_ratio = self.change_portfolio_ratio(price, self.portfolio_ratio)
 
             if change:
+                rotate_log_file("trading.log", max_files=5, max_size_mb=10.0)
                 self.local_range_win.append(price)
                 self.local_range = int(max(self.local_range_win) - min(self.local_range_win))
 
@@ -529,24 +764,27 @@ class TradeAnalyse:
                 self.ma_trend = round(self.sma(self.ma_trend_win, price), 2) - self.gap
                 self.ma_fast_m = round(self.ema(int(self.ma_lenght), self.ma_fast_m, price), 2)
 
-            if self.pair_balance and self.traded_price != 0.0:
-                self.trade_profit, self.price_diff, self.percent_diff, self.portfolio_ratio = self.count_profit(price, self.portfolio_ratio)
+            if self.pair_balance and self.traded_price != 0.0 and self.ATH != 999000.0:
+                self.calculate_profit(price)
+                if change: self.print_setup(price)
 
-            print(
-                f"{int(price)}, " 
-                f"impuls:{self.impuls}|{self.impuls_fmean}, " 
-                f"spot cost: {round(self.buy_price_mean, 1)}, " 
-                f"pnl: {round(self.native_balance[0]*price - self.native_balance[0]*self.buy_price_mean, 1)} {self.pair[1]}, " 
-                f"trend: {round(self.ma_trend - self.ma_trend_prev, 1)} (EMA:{round(self.ma_fast_m - self.ma_trend, 1)}), " 
-                f"spread: {round(abs(self.price_diff), 2)} > local range: {self.local_range}, " 
-                f"target ratio: {round(self.portfolio_ratio * 100.0, 2)}%, " 
-                f"rebalance: {round(self.percent_diff, 2)}% ({round(self.trade_profit, 2)} {self.pair[1]})",
-            )
-
+          
+            data = f"{int(price)}, " \
+                f"impuls {self.diffs_pool.maxlen/60}m: {self.impuls}|{self.impuls_harmonic} ({self.impuls_percent}%|{self.impuls_harmonic_percent}%), " \
+                f"spot cost: {round(self.buy_price_mean, 1)}, " \
+                f"pnl: {round(self.native_balance[0]*price - self.native_balance[0]*self.buy_price_mean, 1)} {self.pair[1]}, " \
+                f"trend: {round(self.ma_trend - self.ma_trend_prev, 1)}, EMA:{round(self.ma_fast_m - self.ma_trend, 1)}, " \
+                f"spread: {round(abs(self.price_diff), 2)} > local range: {self.local_range}, " \
+                f"target ratio: {round(self.portfolio_ratio * 100.0, 2)}%, " \
+                f"rebalance: {round(self.percent_diff, 2)}% ({round(self.trade_profit, 2)} {self.pair[1]})"
+            
+            print(data)
+            with open("trading.log", mode='a', encoding='UTF-8') as f:
+                print(data, file=f)
 
 class Trader:
-    def __init__(self, loop: asyncio.AbstractEventLoop, key: str, secret: str) -> None:
-        self.loop = loop
+    def __init__(self, loop: asyncio.AbstractEventLoop, key, secret) -> None:
+        self.loop = loop    #asyncio.get_running_loop()
         self.key = key
         self.secret = secret
         self.client = None
@@ -557,7 +795,7 @@ class Trader:
         self.minOrderQty = 0.000198
         self.minOrderAmt = 10.0
     
-    async def initialize(self):
+    async def init_data(self):
         self.client = Client(loop=self.loop, base_url="https://api.bybit.com/", key=self.key, secret=self.secret)
         self.client.session = aiohttp.ClientSession()
         self.client.session.headers.update(
@@ -628,7 +866,8 @@ class Trader:
                 counter = 0
                 for pr in data_s1:
                     if counter > 0:
-                        self.ta.diffs_pool.append(pr - self.ta.prices[-1])
+                        # self.ta.diffs_pool.append(pr - self.ta.prices[-1])
+                        self.ta.append_diff(pr)
                     self.ta.prices.append(pr)
                     counter += 1
             print(f"INFO: load prices, size: {len(self.ta.prices)}, last: {self.ta.prices[-1]}")
@@ -716,6 +955,9 @@ class Trader:
 
                     price = float(data["avgPrice"])
                     qtty = float(data["qty"])
+                    if data["side"] == "Sell":
+                        qtty *= price
+                        
                     print(
                         f"MESSAGE: ------------- {data['side']}, ",
                         f"type:{data['orderType']}, ",
@@ -741,6 +983,7 @@ class Trader:
                     btc = float(str_quantity)
 
                 self.ta.traded_price = price
+                self.ta.order_scale.increment_buy()
 
                 if self.ta.buy_price_mean == 0.0:
                     self.ta.buy_price_mean = price
@@ -764,6 +1007,8 @@ class Trader:
 
                 self.ta.buy_price_mean = round((self.ta.native_balance[0] * self.ta.buy_price_mean - qtty * price) / (self.ta.native_balance[0] - qtty), 2)
                 self.ta.traded_price = price
+                self.ta.order_scale.increment_sell()
+
                 self.save_states()
                 self.loop.create_task(
                     Fire_alert(
@@ -799,6 +1044,8 @@ class Trader:
         data["portfolio_ratio"] = self.ta.portfolio_ratio
         data["trend_crossover"] = self.ta.trend_crossover.cross
         data["trend_crossunder"] = self.ta.trend_crossunder.cross
+        data["buy_counter"] = self.ta.order_scale.buy_counter
+        data["sell_counter"] = self.ta.order_scale.sell_counter
 
         with open(f"{self.symbol}.json", "w") as f:
             json.dump(data, f, indent=4)
@@ -826,6 +1073,8 @@ class Trader:
                 self.ta.portfolio_ratio = data["portfolio_ratio"]
                 self.ta.trend_crossover.cross = data["trend_crossover"]
                 self.ta.trend_crossunder.cross = data["trend_crossunder"]
+                self.ta.order_scale._buy_counter = data["buy_counter"]
+                self.ta.order_scale._sell_counter = data["sell_counter"]
                 print(f"Load states.json: {data}")
 
         except Exception as ex:
@@ -902,6 +1151,15 @@ class Trader:
         await self.do_sell(qty)
         return True
 
+    async def sell_all(self):
+        qty = self.ta.native_balance[0]
+        if qty < self.minOrderQty:
+            print(f"Ma cross: SELL, low qtty:{qty * self.last_price}, minOrderQty: {self.minOrderQty}")
+            return False
+
+        await self.do_sell(qty)
+        return True
+    
     async def save_history_loop(self):
         while True:
             data_s1 = arr.array("d", self.ta.prices)
@@ -930,7 +1188,7 @@ class Trader:
 
         while True:
             await asyncio.sleep(0.3)
-
+        
             if self.ta.ma_trend == 0.0 or self.ta.ma_fast_m == 0.0:
                 continue
 
@@ -945,9 +1203,9 @@ class Trader:
                     self.save_states()
 
                     # don't BUY while trend going down
-                    if trend < -1.0:
+                    if trend < 1.0:
                         continue
-
+                            
                     if abs(self.ta.percent_diff) < self.ta.rebalance_bottom:
                         continue
 
@@ -960,8 +1218,13 @@ class Trader:
                     self.save_states()
 
                     # don't SELL while trend going up
-                    if trend > 0.0:
+                    if trend > 0.0:# or self.ta.trend :
                         continue
+                    
+                    ### To do: add option to sell all at min ratio
+                    # if self.ta.portfolio_ratio - 0.05 < self.ta.min_max_ratio[0]:
+                    #     if await self.sell_all():
+                    #         await asyncio.sleep(5.0)
 
                     if abs(self.ta.percent_diff) < self.ta.rebalance_top:
                         continue
@@ -978,9 +1241,10 @@ class Trader:
 
 if __name__ == "__main__":
     main_loop = asyncio.new_event_loop()
+
     tr = Trader(loop=main_loop, key=API_KEY, secret=SECRET_KEY)
 
-    main_loop.run_until_complete(tr.initialize())
+    main_loop.run_until_complete(tr.init_data())
     main_loop.create_task(tr.ws_ticker())
 
     time.sleep(1.0)

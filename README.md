@@ -1,29 +1,85 @@
-# Volatility harvesting (floating percent)
+# Volatility Harvesting (Floating Percent)
 
 ![alt text](pnl.png)
 
-Bybit API spot bot
+A Bybit API spot trading bot implementing volatility harvesting strategy with dynamic portfolio rebalancing.
 
-# Installation
-```
+## Installation
+
+Install required dependencies:
+
+```bash
 pip install -r requirements.txt
 ```
-or 
-```
+
+Or using Python 3 explicitly:
+
+```bash
 python3 -m pip install -r requirements.txt
 ```
-# Preparation
-Change the .env file with your Bybit API and Telegram bot keys (Telegram is optional)
 
-# Run
+## Configuration
+
+1. Copy the example environment file:
+   ```bash
+   cp .env_example .env
+   ```
+
+2. Edit `.env` file and configure the following parameters:
+   - `API_KEY` - Your Bybit API Key ([Get it here](https://www.bybit.com/app/user/api-management))
+   - `SECRET_KEY` - Your Bybit API Secret
+   - `STABLE_PAIR` - Stablecoin to use (default: USDT)
+   - `MA_LENGTH` - Moving Average period for trading signals (default: 24 hours)
+   - `RANGE` - Price range for portfolio ratio calculation (default: 50000 pips)
+   - `MIN_RATIO` - Minimum crypto allocation (default: 0.01 = 1%)
+   - `MAX_RATIO` - Maximum crypto allocation (default: 0.99 = 99%)
+   - `REBALANCE_TOP` - Sell trigger percentage (default: 3.0%)
+   - `REBALANCE_BOTTOM` - Buy trigger percentage (default: 3.0%)
+   - `REBALANCE_ISDYNAMIC` - Enable Fibonacci scaling (default: true)
+   - `FEE` - Trading fee percentage (default: 0.1%)
+   - `TGBOT_TOKEN` - Telegram bot token for notifications (optional)
+   - `TGBOT_CHATID` - Telegram chat ID for notifications (optional)
+
+3. Ensure you have sufficient balance in your Bybit spot account
+
+## Running the Bot
+
+### Using Python directly:
+
+```bash
+python3 vh_float3.py
 ```
-python3 vh_float.py
-```
-or
-```
+
+### Using Docker:
+
+Build and run the container in detached mode:
+
+```bash
 docker-compose build && docker-compose up -d
 ```
+
+View logs:
+
+```bash
+docker-compose logs -f
+```
+
+Stop the bot:
+
+```bash
+docker-compose down
+```
+
+## Monitoring
+
+- Console output shows real-time trading activity
+- `trading.log` file contains detailed trading history (automatically rotated at 10MB, keeps 5 backups)
+- Telegram notifications (if configured) provide trade alerts
+
 --------------
+
+## Strategy Overview
+
 Volatility harvesting is actually not a complicated strategy, but it requires a re-evaluation of the way we view price movements in the market.
 
 It is based on two conditions:

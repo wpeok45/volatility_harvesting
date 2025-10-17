@@ -10,19 +10,6 @@ services:
         max-file: "10"
     environment:
       PYTHONUNBUFFERED: 1
-
-      API_KEY: "XXXXXXXXXXXXXXXXXX"                       # set up your BYBIT APIKey (https://www.bybit.com/app/user/api-management)
-      SECRET_KEY: "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"  # set up your BYBIT API Secret
-      STABLE_PAIR: "USDT"
-      MA_LENGTH: 24         # trading signals length for MA, EMA
-      RANGE: 50             # range = 50% of ATH, ratio_per_point = 1.0 / RANGE (each price tick changes portfolio ratio like ratio +(-) ratio_per_point)
-      MIN_RATIO: 0.01       # minimum portfolio bitcoin to stablecoin ratio 1% / 99%
-      MAX_RATIO: 0.99       # maximum portfolio bitcoin to stablecoin ratio 99% /1%
-      REBALANCE_TOP: 7.0    # % change to make rebalance(SELL)
-      REBALANCE_BOTTOM: 3.0 # % change to make rebalance(BUY)
-      TGBOT_TOKEN: "1234567890:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-      TGBOT_CHATID: "123456789"
-
     volumes:
       - ./:/app
 
