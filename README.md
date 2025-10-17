@@ -55,19 +55,20 @@ python3 vh_float3.py
 Build and run the container in detached mode:
 
 ```bash
-docker-compose build && docker-compose up -d
+docker compose build
+docker compose up -d
 ```
 
 View logs:
 
 ```bash
-docker-compose logs -f
+docker compose logs -f
 ```
 
 Stop the bot:
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
 ## Monitoring
