@@ -29,7 +29,7 @@ python3 -m pip install -r requirements.txt
    - `API_KEY` - Your Bybit API Key ([Get it here](https://www.bybit.com/app/user/api-management))
    - `SECRET_KEY` - Your Bybit API Secret
    - `STABLE_PAIR` - Stablecoin to use (default: USDT)
-   - `MA_LENGTH` - Moving Average period for trading signals (default: 24 hours)
+   - `MA_LENGTH` - Moving Average period for trading signals (default: 24 minutes)
    - `RANGE` - Price range for portfolio ratio calculation (default: 50000 pips)
    - `MIN_RATIO` - Minimum crypto allocation (default: 0.01 = 1%)
    - `MAX_RATIO` - Maximum crypto allocation (default: 0.99 = 99%)
