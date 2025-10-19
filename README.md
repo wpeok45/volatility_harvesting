@@ -36,7 +36,7 @@ python3 -m pip install -r requirements.txt
    - `REBALANCE_TOP` - Sell trigger percentage (default: 3.0%)
    - `REBALANCE_BOTTOM` - Buy trigger percentage (default: 3.0%)
    - `REBALANCE_ISDYNAMIC` - Enable Fibonacci scaling (default: true)
-   - `AMPLITUDE_TIME_FRAME` - Time window for amplitude calculation (in seconds)
+   - `AMPLITUDE_TIME_FRAME` - Time window for amplitude calculation (in minutes)
    - `FEE` - Trading fee percentage (default: 0.1%)
    - `TGBOT_TOKEN` - Telegram bot token for notifications (optional)
    - `TGBOT_CHATID` - Telegram chat ID for notifications (optional)
