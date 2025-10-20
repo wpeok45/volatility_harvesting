@@ -197,7 +197,6 @@ docker compose down
 - **Console output**: Real-time trading activity
 - **Log files**: `data/<exchange>/trading.log` - detailed trading history (auto-rotated at 10MB, keeps 5 backups)
 - **State files**: `data/<exchange>/BTCUSDC.json` - current trading state
-- **History files**: `data/<exchange>/data_s1.dat` - trade history for analysis
 - **Telegram notifications**: Trade alerts (if configured in `.env`)
 - **FastAPI endpoints**: Programmatic access to all trading data and controls (requires authentication)
   - `POST /token` - Get access token (no auth required)
