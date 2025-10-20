@@ -589,8 +589,8 @@ class TradeAnalyse:
         self.order_scale.enabled = REBALANCE_ISDYNAMIC
         self.fee = FEE / 100.0  # 0.1% = 0.001
         self.ATH = 999000.0
-        self.work_range = self.ATH / 100.0 * RANGE
-        self.ratio_per_point = 1.0 / self.work_range
+        self.working_range = self.ATH / 100.0 * RANGE
+        self.ratio_per_point = 1.0 / self.working_range
         self.min_max_ratio = [MIN_RATIO, MAX_RATIO]
         self.log_file = log_file
         self.real_ratio = 0.0
@@ -701,8 +701,8 @@ class TradeAnalyse:
         if price > self.ATH:
             self.ATH = price
 
-        self.work_range = self.ATH / 100.0 * RANGE
-        self.ratio_per_point = 1.0 / self.work_range
+        self.working_range = self.ATH / 100.0 * RANGE
+        self.ratio_per_point = 1.0 / self.working_range
 
         ratio += (self.prices[-2] - price) * self.ratio_per_point
 
@@ -731,7 +731,7 @@ class TradeAnalyse:
         #     return
 
         min_profitable_range = self.get_profitable_range(price)
-        one_percent_pips = self.work_range / 100.0
+        one_percent_pips = self.working_range / 100.0
         self.min_profitable_percent = min_profitable_range / one_percent_pips
 
         if self.rebalance_top < self.min_profitable_percent:
@@ -747,7 +747,7 @@ class TradeAnalyse:
         buy_pips = round(one_percent_pips * self.rebalance_bottom, 2)
 
         total = self.native_balance[0] * price + self.native_balance[1]
-        price_for_pips = total / self.work_range
+        price_for_pips = total / self.working_range
 
         one_percent_amnt = round(price_for_pips * one_percent_pips, 2)
         sell_amnt = round(price_for_pips * sell_pips, 2)
@@ -775,7 +775,7 @@ class TradeAnalyse:
             f"stable_pair: {STABLE_PAIR}\n"
             f"ATH: {self.ATH}\n"
             f"ma_length: {MA_LENGTH}\n"
-            f"range: {RANGE}% ({int(self.work_range)}) pips, lower price limit: {int(price - self.native_balance[1] / price_for_pips)} {self.pair[1]}\n"
+            f"range: {RANGE}% ({int(self.working_range)}) pips, lower price limit: {int(price - self.native_balance[1] / price_for_pips)} {self.pair[1]}\n"
             f"ratio per pip: {self.ratio_per_point:.8f}\n"
             f"pip cost: {round(price_for_pips, 2)} {self.pair[1]}\n"
             f"min_ratio: {MIN_RATIO} ({float(MIN_RATIO) * 100.0}%)\n"

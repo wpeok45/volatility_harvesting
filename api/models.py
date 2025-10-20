@@ -166,7 +166,7 @@ class StatsResponse(BaseModel):
     portfolio_ratio: Optional[float] = Field(default=None, examples=[45.0])
     real_ratio: Optional[float] = Field(default=None, examples=[0.45])
     ATH: Optional[float] = Field(default=None, examples=[100000.0])
-    work_range: Optional[float] = Field(default=None, examples=[50000.0])
+    working_range: Optional[float] = Field(default=None, examples=[50000.0])
     local_range: Optional[float] = Field(default=None, examples=[5000.0])
     rebalance_top: Optional[float] = Field(default=None, examples=[3.0])
     rebalance_bottom: Optional[float] = Field(default=None, examples=[3.0])
