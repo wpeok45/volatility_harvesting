@@ -87,7 +87,7 @@ All endpoints except `/` (root) and `/token` require OAuth2 authentication:
    curl -X POST http://localhost:8000/token \
      -d "username=admin&password=yourpassword"
    ```
-   
+
    Response:
    ```json
    {
@@ -136,9 +136,9 @@ app.include_router(cryptocom_router)
    from .config import save_api_config
    from .auth import get_current_user
    from .models import User, StartResponse, StopResponse, StatusResponse
-   
+
    router = APIRouter(prefix="/exchange", tags=["Exchange"])
-   
+
    @router.post("/start", response_model=StartResponse)
    async def start_exchange_trading(current_user: User = Depends(get_current_user)):
        """Start trading bot (requires authentication)"""
@@ -187,13 +187,13 @@ app.include_router(cryptocom_router)
 
 ## Advantages of Modular Structure
 
-✅ Clean and organized code  
-✅ Easy to add new exchanges  
-✅ Isolation of each exchange logic  
-✅ Simple testing of individual modules  
-✅ Code reusability through dependencies  
-✅ Automatic documentation with tags  
-✅ Independent data storage per exchange  
-✅ Centralized authentication  
-✅ Type-safe with Pydantic models  
+✅ Clean and organized code
+✅ Easy to add new exchanges
+✅ Isolation of each exchange logic
+✅ Simple testing of individual modules
+✅ Code reusability through dependencies
+✅ Automatic documentation with tags
+✅ Independent data storage per exchange
+✅ Centralized authentication
+✅ Type-safe with Pydantic models
 ✅ Complete API documentation with examples

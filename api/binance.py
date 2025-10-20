@@ -17,7 +17,7 @@ async def binance_info(current_user: User = Depends(get_current_user)):
         "exchange": "binance",
         "status": "not_implemented",
         "message": "Binance trading module will be added soon",
-        "enabled": traders["binance"]["enabled"]
+        "enabled": traders["binance"]["enabled"],
     }
 
 
@@ -26,7 +26,7 @@ async def start_binance_trading(current_user: User = Depends(get_current_user)):
     """Start Binance trading bot (not yet implemented, requires authentication)"""
     raise HTTPException(
         status_code=501,
-        detail="Binance trading module is not yet implemented. Coming soon!"
+        detail="Binance trading module is not yet implemented. Coming soon!",
     )
 
 
@@ -35,7 +35,7 @@ async def stop_binance_trading(current_user: User = Depends(get_current_user)):
     """Stop Binance trading bot (not yet implemented, requires authentication)"""
     raise HTTPException(
         status_code=501,
-        detail="Binance trading module is not yet implemented. Coming soon!"
+        detail="Binance trading module is not yet implemented. Coming soon!",
     )
 
 
@@ -44,6 +44,5 @@ async def get_binance_status(current_user: User = Depends(get_current_user)):
     """Get Binance bot status (not yet implemented, requires authentication)"""
     raise HTTPException(
         status_code=501,
-        detail="Binance trading module is not yet implemented. Coming soon!"
+        detail="Binance trading module is not yet implemented. Coming soon!",
     )
-

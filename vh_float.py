@@ -857,7 +857,9 @@ class TradeAnalyse:
 
 
 class Trader:
-    def __init__(self, loop: asyncio.AbstractEventLoop, key, secret, data_dir: str = "data") -> None:
+    def __init__(
+        self, loop: asyncio.AbstractEventLoop, key, secret, data_dir: str = "data"
+    ) -> None:
         self.loop = loop  # asyncio.get_running_loop()
         self.key = key
         self.secret = secret
@@ -869,12 +871,12 @@ class Trader:
         self.minOrderAmt = 10.0
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # File paths for data storage
         self.log_file = str(self.data_dir / "trading.log")
         self.data_file = str(self.data_dir / "data_s1.dat")
         self.state_file = str(self.data_dir / f"{self.symbol}.json")
-        
+
         # Initialize TradeAnalyse with log file
         self.ta = TradeAnalyse(self.pair, log_file=self.log_file)
 

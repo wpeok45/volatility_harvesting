@@ -17,7 +17,7 @@ async def cryptocom_info(current_user: User = Depends(get_current_user)):
         "exchange": "cryptocom",
         "status": "not_implemented",
         "message": "Crypto.com trading module will be added soon",
-        "enabled": traders["cryptocom"]["enabled"]
+        "enabled": traders["cryptocom"]["enabled"],
     }
 
 
@@ -26,7 +26,7 @@ async def start_cryptocom_trading(current_user: User = Depends(get_current_user)
     """Start Crypto.com trading bot (not yet implemented, requires authentication)"""
     raise HTTPException(
         status_code=501,
-        detail="Crypto.com trading module is not yet implemented. Coming soon!"
+        detail="Crypto.com trading module is not yet implemented. Coming soon!",
     )
 
 
@@ -35,7 +35,7 @@ async def stop_cryptocom_trading(current_user: User = Depends(get_current_user))
     """Stop Crypto.com trading bot (not yet implemented, requires authentication)"""
     raise HTTPException(
         status_code=501,
-        detail="Crypto.com trading module is not yet implemented. Coming soon!"
+        detail="Crypto.com trading module is not yet implemented. Coming soon!",
     )
 
 
@@ -44,6 +44,5 @@ async def get_cryptocom_status(current_user: User = Depends(get_current_user)):
     """Get Crypto.com bot status (not yet implemented, requires authentication)"""
     raise HTTPException(
         status_code=501,
-        detail="Crypto.com trading module is not yet implemented. Coming soon!"
+        detail="Crypto.com trading module is not yet implemented. Coming soon!",
     )
-

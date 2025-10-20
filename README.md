@@ -62,7 +62,7 @@ python3 -m pip install -r requirements.txt
    ```
 
 2. Edit `.env` file and configure the following parameters:
-   
+
    **Trading Configuration:**
    - `API_KEY` - Your Bybit API Key ([Get it here](https://www.bybit.com/app/user/api-management))
    - `SECRET_KEY` - Your Bybit API Secret
@@ -78,7 +78,7 @@ python3 -m pip install -r requirements.txt
    - `FEE` - Trading fee percentage (default: 0.1%)
    - `TGBOT_TOKEN` - Telegram bot token for notifications (optional)
    - `TGBOT_CHATID` - Telegram chat ID for notifications (optional)
-   
+
    **API Authentication (OAuth2):**
    - `ADMIN_USERNAME` - API admin username (default: admin)
    - `ADMIN_PASSWORD` - API admin password (**change this!**)

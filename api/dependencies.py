@@ -13,7 +13,7 @@ traders: Dict[str, Dict[str, Any]] = {
         "tasks": [],
         "enabled": True,
         "name": "ByBit Spot",
-        "is_started": True
+        "is_started": True,
     },
     "binance": {
         "instance": None,
@@ -21,7 +21,7 @@ traders: Dict[str, Dict[str, Any]] = {
         "tasks": [],
         "enabled": False,
         "name": "Binance Spot",
-        "is_started": False
+        "is_started": False,
     },
     "cryptocom": {
         "instance": None,
@@ -29,27 +29,30 @@ traders: Dict[str, Dict[str, Any]] = {
         "tasks": [],
         "enabled": False,
         "name": "Crypto.com Spot",
-        "is_started": False
-    }
+        "is_started": False,
+    },
 }
 
 main_loop: Optional[asyncio.AbstractEventLoop] = None
 
+
 def get_main_loop() -> Optional[asyncio.AbstractEventLoop]:
     """Get current main loop"""
     return main_loop
+
 
 def set_main_loop(loop: asyncio.AbstractEventLoop):
     """Set main loop"""
     global main_loop
     main_loop = loop
 
+
 # Data directories for each exchange
 DATA_DIR = Path("data")
 EXCHANGE_DATA_DIRS = {
     "bybit": DATA_DIR / "bybit",
     "binance": DATA_DIR / "binance",
-    "cryptocom": DATA_DIR / "cryptocom"
+    "cryptocom": DATA_DIR / "cryptocom",
 }
 
 # Ensure data directories exist
