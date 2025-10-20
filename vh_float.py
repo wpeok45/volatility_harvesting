@@ -24,16 +24,30 @@ API_KEY = os.getenv("API_KEY", "")
 SECRET_KEY = os.getenv("SECRET_KEY", "")
 STABLE_PAIR = os.getenv("STABLE_PAIR", "USDT")
 MA_LENGTH = float(os.getenv("MA_LENGTH", 24.0))  # trading signals length for MA, EMA
-RANGE = float(os.getenv("RANGE", 50.0))          # range = 50% of ATH, ratio_per_point = 1.0 / RANGE (each price tick changes portfolio ratio like ratio +(-) ratio_per_point)
-MIN_RATIO = float(os.getenv("MIN_RATIO", 0.01))  # minimum portfolio bitcoin to stablecoin ratio 1% / 97%
-MAX_RATIO = float(os.getenv("MAX_RATIO", 0.99))  # maximum portfolio bitcoin to stablecoin ratio 99% /3%
+RANGE = float(
+    os.getenv("RANGE", 50.0)
+)  # range = 50% of ATH, ratio_per_point = 1.0 / RANGE (each price tick changes portfolio ratio like ratio +(-) ratio_per_point)
+MIN_RATIO = float(
+    os.getenv("MIN_RATIO", 0.01)
+)  # minimum portfolio bitcoin to stablecoin ratio 1% / 97%
+MAX_RATIO = float(
+    os.getenv("MAX_RATIO", 0.99)
+)  # maximum portfolio bitcoin to stablecoin ratio 99% /3%
 REBALANCE_TOP = float(os.getenv("REBALANCE_TOP", 3.0))  # % rebalance(SELL)
 REBALANCE_BOTTOM = float(os.getenv("REBALANCE_BOTTOM", 3.0))  # % rebalance(BUY)
-REBALANCE_ISDYNAMIC = os.getenv("REBALANCE_ISDYNAMIC", "false").lower() in ("true", "1", "yes", "y")
-AMPLITUDE_TIME_FRAME = int(os.getenv("AMPLITUDE_TIME_FRAME", 120))  # secundes, time frame for amplitude calculation
-FEE = float(os.getenv("FEE", 0.1))              # trading fee in percent, default 0.1%
+REBALANCE_ISDYNAMIC = os.getenv("REBALANCE_ISDYNAMIC", "false").lower() in (
+    "true",
+    "1",
+    "yes",
+    "y",
+)
+AMPLITUDE_TIME_FRAME = int(
+    os.getenv("AMPLITUDE_TIME_FRAME", 120)
+)  # secundes, time frame for amplitude calculation
+FEE = float(os.getenv("FEE", 0.1))  # trading fee in percent, default 0.1%
 TGBOT_TOKEN = os.getenv("TGBOT_TOKEN", "")
 TGBOT_CHATID = os.getenv("TGBOT_CHATID", "")
+
 
 async def Fire_alert(bot_message: str, bot_token: str, bot_chatID: str):
     if bot_token == "" or bot_chatID == "":
@@ -49,30 +63,31 @@ async def Fire_alert(bot_message: str, bot_token: str, bot_chatID: str):
     except Exception as ex:
         print(f"ERROR: Fire_alert, {repr(traceback.extract_tb(ex.__traceback__))}")
 
+
 def rotate_log_file(log_file: str, max_files: int = 5, max_size_mb: float = 10.0):
     """Rotate log file if it exceeds max size.
-    
+
     Args:
         log_file: Path to log file
         max_files: Maximum number of rotated files to keep
         max_size_mb: Maximum file size in MB before rotation
     """
     log_path = Path(log_file)
-    
+
     # Check if file exists and size
     if not log_path.exists():
         return
-    
+
     file_size_mb = log_path.stat().st_size / (1024 * 1024)
-    
+
     if file_size_mb < max_size_mb:
         return
-    
+
     # Rotate existing backup files
     for i in range(max_files - 1, 0, -1):
         old_file = Path(f"{log_file}.{i}")
         new_file = Path(f"{log_file}.{i + 1}")
-        
+
         if old_file.exists():
             if i + 1 >= max_files:
                 # Delete oldest file
@@ -80,12 +95,13 @@ def rotate_log_file(log_file: str, max_files: int = 5, max_size_mb: float = 10.0
             else:
                 # Rename to next number
                 old_file.rename(new_file)
-    
+
     # Rename current log to .1
     if log_path.exists():
         log_path.rename(f"{log_file}.1")
-    
+
     print(f"LOG ROTATED: {log_file} ({file_size_mb:.2f} MB)")
+
 
 class WSClient:
     def __init__(self, loop: asyncio.AbstractEventLoop, stream_url, key, secret):
@@ -94,9 +110,17 @@ class WSClient:
         self.secret = secret
         self.stream_url = stream_url
         resolver = aiohttp.resolver.AsyncResolver(nameservers=["1.1.1.1", "8.8.8.8"])
-        connector = aiohttp.TCPConnector(loop=self.loop, family=socket.AF_INET, limit=100, ttl_dns_cache=30000, resolver=resolver)
+        connector = aiohttp.TCPConnector(
+            loop=self.loop,
+            family=socket.AF_INET,
+            limit=100,
+            ttl_dns_cache=30000,
+            resolver=resolver,
+        )
         timeout = aiohttp.ClientTimeout(total=5)
-        self.session = aiohttp.ClientSession(loop=self.loop, connector=connector, timeout=timeout)
+        self.session = aiohttp.ClientSession(
+            loop=self.loop, connector=connector, timeout=timeout
+        )
 
     async def initialize(self):
         self.session = aiohttp.ClientSession()
@@ -120,7 +144,10 @@ class WSClient:
             ).hexdigest(),
         )
 
-        return {"op": "auth", "args": [self.key, expires, signature]}  # , 'req_id': '10002'}
+        return {
+            "op": "auth",
+            "args": [self.key, expires, signature],
+        }  # , 'req_id': '10002'}
 
     async def _subscription(self, ws):
         sub_msg = {
@@ -166,7 +193,9 @@ class WSClient:
                 async with self.session.ws_connect(self.stream_url) as ws:
                     if need_auth:
                         data = await self._create_auth()
-                        await ws.send_str(json.dumps(data, ensure_ascii=False), compress=None)
+                        await ws.send_str(
+                            json.dumps(data, ensure_ascii=False), compress=None
+                        )
                         await asyncio.sleep(1.0)
 
                     await ws.send_str(json.dumps(subscribe))  # , ensure_ascii=False))
@@ -195,7 +224,9 @@ class WSClient:
                                 print(f"WARNING: ws start, closed, {subscribe}")
                                 break
                             case aiohttp.WSMsgType.ERROR:
-                                print(f"ERROR: ws, Error during receive, {subscribe}, {ws.exception()}")
+                                print(
+                                    f"ERROR: ws, Error during receive, {subscribe}, {ws.exception()}"
+                                )
                                 break
                             case _:
                                 print(f"WARNING: ws, unknown command: {msg}")
@@ -215,10 +246,12 @@ class Client:
         self.base_url = base_url
         timeout = aiohttp.ClientTimeout(total=5)
         self.session = aiohttp.ClientSession(loop=self.loop, timeout=timeout)
-        
+
     def genSignature(self, payload, time_stamp, recv_window):
         param_str = str(time_stamp) + self.key + recv_window + payload
-        hash = hmac.new(bytes(self.secret, "utf-8"), param_str.encode("utf-8"), hashlib.sha256)
+        hash = hmac.new(
+            bytes(self.secret, "utf-8"), param_str.encode("utf-8"), hashlib.sha256
+        )
         signature = hash.hexdigest()
         return signature
 
@@ -237,10 +270,14 @@ class Client:
         }
 
         if method == "POST":
-            async with self.session.post(self.base_url + endPoint, headers=headers, data=payload) as resp:
+            async with self.session.post(
+                self.base_url + endPoint, headers=headers, data=payload
+            ) as resp:
                 resp_data = await resp.json()
         else:
-            async with self.session.get(self.base_url + endPoint + "?" + payload, headers=headers) as resp:
+            async with self.session.get(
+                self.base_url + endPoint + "?" + payload, headers=headers
+            ) as resp:
                 resp_data = await resp.json()
 
         return resp_data, resp.status
@@ -248,7 +285,9 @@ class Client:
     async def account(self):
         endpoint = "/v5/account/wallet-balance"
         params = "accountType=UNIFIED"
-        resp_data, resp_status = await self.HTTP_Request(endpoint, "GET", params, "Account")
+        resp_data, resp_status = await self.HTTP_Request(
+            endpoint, "GET", params, "Account"
+        )
         if resp_status != 200:
             print(f"ERROR: {resp_data} \n\n resp_status: {resp_status}")
             return None
@@ -258,14 +297,18 @@ class Client:
     async def fee_rate(self, symbol):
         endpoint = "/v5/account/fee-rate"
         params = f"symbol={symbol}"
-        resp_data, resp_status = await self.HTTP_Request(endpoint, "GET", params, "Fee-rate")
+        resp_data, resp_status = await self.HTTP_Request(
+            endpoint, "GET", params, "Fee-rate"
+        )
         if resp_status != 200:
             print(f"ERROR: {resp_data} \n\n resp_status: {resp_status}")
             return None
 
         return resp_data
 
-    async def limit_order(self, symbol: str, side: str, price: float, quantity_size: float):
+    async def limit_order(
+        self, symbol: str, side: str, price: float, quantity_size: float
+    ):
         quantity = round(quantity_size, 5)
         q = str(quantity)
         zeros = "".join(["0"] * (8 - len(q)))
@@ -275,10 +318,15 @@ class Client:
         method = "POST"
         # orderLinkId=uuid.uuid4().hex
 
-        params = '{"category":"spot","symbol":"%s","side":"%s","orderType":"Market","qty":"%s","timeInForce":"IOC","orderLinkId":"","isLeverage":0}' % (symbol, side, str_quantity)
+        params = (
+            '{"category":"spot","symbol":"%s","side":"%s","orderType":"Market","qty":"%s","timeInForce":"IOC","orderLinkId":"","isLeverage":0}'
+            % (symbol, side, str_quantity)
+        )
         print(f"DEBUG: params: {params}")
 
-        resp_data, resp_status = await self.HTTP_Request(endpoint, method, params, "Create")
+        resp_data, resp_status = await self.HTTP_Request(
+            endpoint, method, params, "Create"
+        )
 
         if resp_status != 200:
             print(f"ERROR: {resp_data} \n\n resp_status: {resp_status}")
@@ -295,7 +343,10 @@ class Client:
         method = "POST"
         # orderLinkId=uuid.uuid4().hex
 
-        params = '{"category":"spot","symbol":"%s","side":"%s","orderType":"Market","qty":"%s","timeInForce":"IOC","orderLinkId":"","isLeverage":0}' % (symbol, side, str_quantity)
+        params = (
+            '{"category":"spot","symbol":"%s","side":"%s","orderType":"Market","qty":"%s","timeInForce":"IOC","orderLinkId":"","isLeverage":0}'
+            % (symbol, side, str_quantity)
+        )
         print(f"DEBUG: params: {params}")
 
         return await self.HTTP_Request(endpoint, method, params, "Create")
@@ -320,7 +371,9 @@ class Client:
     async def instrument_info(self, symbol):
         endpoint = "/v5/market/instruments-info"
         params = f"category=spot&symbol={symbol}"
-        resp_data, resp_status = await self.HTTP_Request(endpoint, "GET", params, "instrument_info")
+        resp_data, resp_status = await self.HTTP_Request(
+            endpoint, "GET", params, "instrument_info"
+        )
         if resp_status != 200:
             print(f"ERROR: {resp_data} \n\n resp_status: {resp_status}")
             return None
@@ -364,21 +417,21 @@ class Crossover:
 
 class DynamicOrderScale:
     """Manages dynamic scaling of buy/sell order percentages based on consecutive trades.
-    
+
     Supports both Fibonacci and linear scaling strategies.
     """
-    
+
     # Fibonacci sequence cache (class-level constant)
     FIBONACCI_SEQUENCE = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610]
-    
+
     def __init__(
-        self, 
-        min_buy_percent: float, 
-        min_sell_percent: float, 
-        use_fibonacci: bool = True
+        self,
+        min_buy_percent: float,
+        min_sell_percent: float,
+        use_fibonacci: bool = True,
     ) -> None:
         """Initialize order scaler.
-        
+
         Args:
             min_buy_percent: Minimum buy percentage
             min_sell_percent: Minimum sell percentage
@@ -390,12 +443,12 @@ class DynamicOrderScale:
         self.use_fibonacci = use_fibonacci
         self._buy_counter = 1
         self._sell_counter = 1
-    
+
     @property
     def buy_counter(self) -> int:
         """Current buy counter."""
         return self._buy_counter
-    
+
     @buy_counter.setter
     def buy_counter(self, value: int) -> None:
         """Set buy counter with validation."""
@@ -410,7 +463,7 @@ class DynamicOrderScale:
     def sell_counter(self) -> int:
         """Current sell counter."""
         return self._sell_counter
-    
+
     @sell_counter.setter
     def sell_counter(self, value: int) -> None:
         """Set sell counter with validation."""
@@ -423,64 +476,64 @@ class DynamicOrderScale:
 
     def _get_multiplier(self, counter: int) -> float:
         """Get scaling multiplier for given counter.
-        
+
         Args:
             counter: Counter value (1-indexed)
-            
+
         Returns:
             Multiplier value from Fibonacci or linear sequence
         """
         if not self.use_fibonacci:
             return counter
-        
+
         # Convert 1-indexed to 0-indexed for array access
         index = counter - 1
-        
+
         # Safely get Fibonacci value
         if index >= len(self.FIBONACCI_SEQUENCE):
             return self.FIBONACCI_SEQUENCE[-1]
-        
+
         return self.FIBONACCI_SEQUENCE[index]
-    
+
     def increment_buy(self) -> None:
         """Increase buy scale, decrease sell scale."""
         self._buy_counter = min(self._buy_counter + 1, len(self.FIBONACCI_SEQUENCE))
         self._sell_counter = max(self._sell_counter - 1, 1)
-    
+
     def increment_sell(self) -> None:
         """Increase sell scale, decrease buy scale."""
         self._sell_counter = min(self._sell_counter + 1, len(self.FIBONACCI_SEQUENCE))
         self._buy_counter = max(self._buy_counter - 1, 1)
-    
+
     def get_buy_percent(self) -> float:
         """Calculate current buy percentage based on counter.
-        
+
         Returns:
             Scaled buy percentage
         """
         if not self.enabled:
             return self.min_buy_percent
-        
+
         multiplier = self._get_multiplier(self._buy_counter)
         return self.min_buy_percent * multiplier
-    
+
     def get_sell_percent(self) -> float:
         """Calculate current sell percentage based on counter.
-        
+
         Returns:
             Scaled sell percentage
         """
         if not self.enabled:
             return self.min_sell_percent
-        
+
         multiplier = self._get_multiplier(self._sell_counter)
         return self.min_sell_percent * multiplier
-    
+
     def reset(self) -> None:
         """Reset counters to initial state."""
         self._buy_counter = 1
         self._sell_counter = 1
-    
+
     def __repr__(self) -> str:
         """String representation for debugging."""
         return (
@@ -528,9 +581,9 @@ class TradeAnalyse:
         self.min_profitable_percent = REBALANCE_TOP
         self.order_scale = DynamicOrderScale(self.rebalance_bottom, self.rebalance_top)
         self.order_scale.enabled = REBALANCE_ISDYNAMIC
-        self.fee = FEE / 100.0 # 0.1% = 0.001
+        self.fee = FEE / 100.0  # 0.1% = 0.001
         self.ATH = 999000.0
-        self.work_range = self.ATH / 100.0 * RANGE 
+        self.work_range = self.ATH / 100.0 * RANGE
         self.ratio_per_point = 1.0 / self.work_range
         self.min_max_ratio = [MIN_RATIO, MAX_RATIO]
         self.real_ratio = 0.0
@@ -538,7 +591,7 @@ class TradeAnalyse:
         self.percent_diff = 0.0
         self.bot_token = TGBOT_TOKEN
         self.bot_chatID = TGBOT_CHATID
-        
+
     def fft(self, x):
         N = len(x)
         if N <= 1:
@@ -546,8 +599,9 @@ class TradeAnalyse:
         even = self.fft(x[0::2])
         odd = self.fft(x[1::2])
         T = [cmath.exp(-2j * cmath.pi * k / N) * odd[k] for k in range(N // 2)]
-        return [even[k] + T[k] for k in range(N // 2)] + \
-            [even[k] - T[k] for k in range(N // 2)]
+        return [even[k] + T[k] for k in range(N // 2)] + [
+            even[k] - T[k] for k in range(N // 2)
+        ]
 
     def calculate_avg_amplitude(self, data):
         spectrum = self.fft(data)
@@ -575,7 +629,7 @@ class TradeAnalyse:
         val_up_one = val * (price + 1.0)
         val_one_pip = val_up_one - 1000.0
         return fee_amount / val_one_pip
-  
+
     def sma(self, deq: deque, price, temp=False):
         if temp:
             win = list(deq)[1:]
@@ -595,21 +649,21 @@ class TradeAnalyse:
         impuls = price - self.prices[-1]
         if impuls != 0.0:
             self.diffs_pool.append(impuls)
-        
+
     def count_power_s1(self, price: float):
         if len(self.prices) < 4:
             return
         self.append_diff(price)
-        
+
         if len(self.diffs_pool) < 4:
             return
-        
+
         abs_diffs_pool = list(map(lambda x: math.fabs(x), self.diffs_pool))
         abs_diffs_pool.sort(reverse=True)
-        pos = len(abs_diffs_pool)//10
+        pos = len(abs_diffs_pool) // 10
 
         self.min_impuls = abs_diffs_pool[pos]
-        
+
         positive = list(filter(lambda n: n > self.min_impuls, self.diffs_pool))
         neg_list = list(filter(lambda n: n < -self.min_impuls, self.diffs_pool))
         negative = list(map(lambda x: math.fabs(x), neg_list))
@@ -620,25 +674,29 @@ class TradeAnalyse:
         if self.power_pos > 1:
             if self.power_neg > 1:
                 self.impuls = self.power_pos - self.power_neg
-                self.impuls_percent = round(self.power_pos / (self.power_pos + self.power_neg) * 100 - 50.0 , 2)
+                self.impuls_percent = round(
+                    self.power_pos / (self.power_pos + self.power_neg) * 100 - 50.0, 2
+                )
 
-                impuls_pos = statistics.harmonic_mean(positive) 
+                impuls_pos = statistics.harmonic_mean(positive)
                 impuls_neg = statistics.harmonic_mean(negative)
 
                 self.impuls_harmonic = round(impuls_pos - impuls_neg, 2)
-     
-                self.impuls_harmonic_percent = round(impuls_pos / (impuls_pos + impuls_neg) * 100 - 50.0, 2)
+
+                self.impuls_harmonic_percent = round(
+                    impuls_pos / (impuls_pos + impuls_neg) * 100 - 50.0, 2
+                )
 
     def change_portfolio_ratio(self, price, ratio):
         if self.ATH == 999000.0:
             return 1.0
-        
+
         if price > self.ATH:
             self.ATH = price
 
-        self.work_range = self.ATH / 100.0 * RANGE 
+        self.work_range = self.ATH / 100.0 * RANGE
         self.ratio_per_point = 1.0 / self.work_range
-        
+
         ratio += (self.prices[-2] - price) * self.ratio_per_point
 
         if ratio < self.min_max_ratio[0]:
@@ -677,7 +735,6 @@ class TradeAnalyse:
 
         self.rebalance_top = self.order_scale.get_sell_percent()
         self.rebalance_bottom = self.order_scale.get_buy_percent()
-        
 
         sell_pips = round(one_percent_pips * self.rebalance_top, 2)
         buy_pips = round(one_percent_pips * self.rebalance_bottom, 2)
@@ -688,55 +745,55 @@ class TradeAnalyse:
         one_percent_amnt = round(price_for_pips * one_percent_pips, 2)
         sell_amnt = round(price_for_pips * sell_pips, 2)
         buy_amnt = round(price_for_pips * buy_pips, 2)
-        
+
         sell_value = sell_amnt / price
         sell_amnt_old = sell_value * (price - sell_pips)
-        
+
         sell_fee = sell_amnt * self.fee
         revenue = round(sell_amnt - sell_amnt_old - sell_fee * 2.0, 3)
-        
+
         # real_value = abs(self.trade_profit / price)
         # real_amnt_old = real_value * (price - self.price_diff)
         # real_fee = abs(self.trade_profit * self.fee)
         # real_revenue = round(abs(self.trade_profit) - real_amnt_old - real_fee * 2.0, 2)
-        
-        
 
         real_value = self.trade_profit / price
         real_amnt_old = real_value * (price - self.price_diff)
         real_fee = self.trade_profit * (self.fee * 2.0)
         real_revenue = round(self.trade_profit - real_amnt_old - real_fee * 2.0, 3)
-        
-        data = f"---------------Volatility harvesting------------\n" \
-            f"tg bot_chatID: {self.bot_chatID}\n" \
-            f"stable_pair: {STABLE_PAIR}\n" \
-            f"ATH: {self.ATH}\n" \
-            f"ma_length: {MA_LENGTH}\n" \
-            f"range: {RANGE}% ({int(self.work_range)}) pips, lower price limit: {int(price - self.native_balance[1] / price_for_pips)} {self.pair[1]}\n" \
-            f"ratio per pip: {self.ratio_per_point:.8f}\n" \
-            f"pip cost: {round(price_for_pips, 2)} {self.pair[1]}\n" \
-            f"min_ratio: {MIN_RATIO} ({float(MIN_RATIO) * 100.0}%)\n" \
-            f"max_ratio: {MAX_RATIO} ({float(MAX_RATIO) * 100.0}%)\n" \
-            f"amplitude {self.local_range_win.maxlen / 60} h: {self.local_range} pips\n" \
-            f"rebalance params:\n" \
-            f"  1%: {round(one_percent_pips, 2)} pips ({one_percent_amnt} {self.pair[1]})\n" \
-            f"  min profitable pips: {round(min_profitable_range, 1)} ({round(self.min_profitable_percent, 2)}%)\n" \
-            f"  is dynamic rebalance: {self.order_scale.enabled}\n" \
-            f"  buy at: -{round(self.rebalance_bottom, 2)}% (-{buy_pips} pips or -{buy_amnt} {self.pair[1]})\n" \
-            f"  sell at: {round(self.rebalance_top, 2)}% ({sell_pips} pips or {sell_amnt} {self.pair[1]})\n" \
-            f"  min revenue: {revenue} {self.pair[1]}\n" \
-            f"  fee: {round(sell_fee * 2, 3)} {self.pair[1]}\n" \
-            f"now:\n" \
-            f"  spread: {round(self.price_diff, 2)} pips, {round(self.percent_diff, 2)} %, {round(self.trade_profit, 2)} {self.pair[1]}\n" \
+
+        data = (
+            f"---------------Volatility harvesting------------\n"
+            f"tg bot_chatID: {self.bot_chatID}\n"
+            f"stable_pair: {STABLE_PAIR}\n"
+            f"ATH: {self.ATH}\n"
+            f"ma_length: {MA_LENGTH}\n"
+            f"range: {RANGE}% ({int(self.work_range)}) pips, lower price limit: {int(price - self.native_balance[1] / price_for_pips)} {self.pair[1]}\n"
+            f"ratio per pip: {self.ratio_per_point:.8f}\n"
+            f"pip cost: {round(price_for_pips, 2)} {self.pair[1]}\n"
+            f"min_ratio: {MIN_RATIO} ({float(MIN_RATIO) * 100.0}%)\n"
+            f"max_ratio: {MAX_RATIO} ({float(MAX_RATIO) * 100.0}%)\n"
+            f"amplitude {self.local_range_win.maxlen / 60} h: {self.local_range} pips\n"
+            f"rebalance params:\n"
+            f"  1%: {round(one_percent_pips, 2)} pips ({one_percent_amnt} {self.pair[1]})\n"
+            f"  min profitable pips: {round(min_profitable_range, 1)} ({round(self.min_profitable_percent, 2)}%)\n"
+            f"  is dynamic rebalance: {self.order_scale.enabled}\n"
+            f"  buy at: -{round(self.rebalance_bottom, 2)}% (-{buy_pips} pips or -{buy_amnt} {self.pair[1]})\n"
+            f"  sell at: {round(self.rebalance_top, 2)}% ({sell_pips} pips or {sell_amnt} {self.pair[1]})\n"
+            f"  min revenue: {revenue} {self.pair[1]}\n"
+            f"  fee: {round(sell_fee * 2, 3)} {self.pair[1]}\n"
+            f"now:\n"
+            f"  spread: {round(self.price_diff, 2)} pips, {round(self.percent_diff, 2)} %, {round(self.trade_profit, 2)} {self.pair[1]}\n"
             f"  fee:{round(real_fee, 3)} {self.pair[1]} (buy+sell)\n"
-            
-        if self.price_diff > 0.0: 
+        )
+
+        if self.price_diff > 0.0:
             data += f"  revenue: {real_revenue} {self.pair[1]}\n"
-            
+
         data += f"------------------------------------------------------"
-            
+
         print(data)
-        
+
     def monitor(self, price, m1_time, show=False):
         change = False
         if self.m1_timer != m1_time:
@@ -745,48 +802,59 @@ class TradeAnalyse:
 
         self.count_power_s1(price)
         self.prices.append(price)
-            
+
         if not show:
             self.local_range_win.append(price)
             self.ma_trend = round(self.sma(self.ma_trend_win, price), 2) - self.gap
-            self.ma_fast_m = round(self.ema(int(self.ma_lenght), self.ma_fast_m, price), 2)
+            self.ma_fast_m = round(
+                self.ema(int(self.ma_lenght), self.ma_fast_m, price), 2
+            )
             return
 
         if show:
-            self.portfolio_ratio = self.change_portfolio_ratio(price, self.portfolio_ratio)
+            self.portfolio_ratio = self.change_portfolio_ratio(
+                price, self.portfolio_ratio
+            )
 
             if change:
                 rotate_log_file("trading.log", max_files=5, max_size_mb=10.0)
                 self.local_range_win.append(price)
-                self.local_range = int(max(self.local_range_win) - min(self.local_range_win))
+                self.local_range = int(
+                    max(self.local_range_win) - min(self.local_range_win)
+                )
 
                 self.ma_trend_prev = self.ma_trend
                 self.ma_trend = round(self.sma(self.ma_trend_win, price), 2) - self.gap
-                self.ma_fast_m = round(self.ema(int(self.ma_lenght), self.ma_fast_m, price), 2)
+                self.ma_fast_m = round(
+                    self.ema(int(self.ma_lenght), self.ma_fast_m, price), 2
+                )
 
             if self.pair_balance and self.traded_price != 0.0 and self.ATH != 999000.0:
                 self.calculate_profit(price)
-                if change: self.print_setup(price)
+                if change:
+                    self.print_setup(price)
 
-          
-            data = f"{int(price)}, " \
-                f"impuls {self.diffs_pool.maxlen/60}m: {self.impuls}|{self.impuls_harmonic} ({self.impuls_percent}%|{self.impuls_harmonic_percent}%), " \
-                f"spot cost: {round(self.buy_price_mean, 1)}, " \
-                f"pnl: {round(self.native_balance[0]*price - self.native_balance[0]*self.buy_price_mean, 1)} {self.pair[1]}, " \
-                f"trend: {round(self.ma_trend - self.ma_trend_prev, 1)}, EMA:{round(self.ma_fast_m - self.ma_trend, 1)}, " \
-                f"spread: {round(abs(self.price_diff), 2)} > local range: {self.local_range}, " \
-                f"target ratio: {round(self.portfolio_ratio * 100.0, 2)}%, " \
+            data = (
+                f"{int(price)}, "
+                f"impuls {self.diffs_pool.maxlen/60}m: {self.impuls}|{self.impuls_harmonic} ({self.impuls_percent}%|{self.impuls_harmonic_percent}%), "
+                f"spot cost: {round(self.buy_price_mean, 1)}, "
+                f"pnl: {round(self.native_balance[0]*price - self.native_balance[0]*self.buy_price_mean, 1)} {self.pair[1]}, "
+                f"trend: {round(self.ma_trend - self.ma_trend_prev, 1)}, EMA:{round(self.ma_fast_m - self.ma_trend, 1)}, "
+                f"spread: {round(abs(self.price_diff), 2)} > local range: {self.local_range}, "
+                f"target ratio: {round(self.portfolio_ratio * 100.0, 2)}%, "
                 f"rebalance: {round(self.percent_diff, 2)}% ({round(self.trade_profit, 2)} {self.pair[1]})"
-            
+            )
+
             print(data)
 
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            with open("trading.log", mode='a', encoding='UTF-8') as f:
+            with open("trading.log", mode="a", encoding="UTF-8") as f:
                 print(f"[{timestamp}] {data}", file=f)
+
 
 class Trader:
     def __init__(self, loop: asyncio.AbstractEventLoop, key, secret) -> None:
-        self.loop = loop    #asyncio.get_running_loop()
+        self.loop = loop  # asyncio.get_running_loop()
         self.key = key
         self.secret = secret
         self.client = None
@@ -796,9 +864,14 @@ class Trader:
         self.ta = TradeAnalyse(self.pair)
         self.minOrderQty = 0.000198
         self.minOrderAmt = 10.0
-    
+
     async def init_data(self):
-        self.client = Client(loop=self.loop, base_url="https://api.bybit.com/", key=self.key, secret=self.secret)
+        self.client = Client(
+            loop=self.loop,
+            base_url="https://api.bybit.com/",
+            key=self.key,
+            secret=self.secret,
+        )
         self.client.session = aiohttp.ClientSession()
         self.client.session.headers.update(
             {
@@ -812,7 +885,7 @@ class Trader:
 
         while True:
             try:
-                m720= await self.client.get_klines(symbol=self.symbol, interval="720")
+                m720 = await self.client.get_klines(symbol=self.symbol, interval="720")
                 # {
                 #     "retCode":0,
                 #     "retMsg":"OK",
@@ -822,7 +895,7 @@ class Trader:
                 #         "list":[
                 #             ["1747785600000","106855.3","107731.9","106187.8","107518.1","3057.888486","327543867.4335117"],
                 #             }
-                      
+
                 m1 = await self.client.get_klines(symbol=self.symbol, interval="1")
                 break
             except Exception as ex:
@@ -833,13 +906,12 @@ class Trader:
         if m1["retCode"] != 0:
             return
 
-        
         # get ATH price for m720
         data = m720["result"]["list"]
-        prices = list(map(lambda d: float(d[4]), data))                          
-        self.ta.ATH = max(prices)        
-        
-        # get 1m history        
+        prices = list(map(lambda d: float(d[4]), data))
+        self.ta.ATH = max(prices)
+
+        # get 1m history
         data = m1["result"]["list"]
         data.sort(key=lambda x: x[0])
         prices = list(map(lambda d: float(d[4]), data))
@@ -852,10 +924,16 @@ class Trader:
 
     async def Get_instrument_info(self, price: float):
         data = await self.client.instrument_info(symbol=self.symbol)
-        self.minOrderQty = float(data["result"]["list"][0]["lotSizeFilter"]["minOrderQty"])
-        self.minOrderAmt = float(data["result"]["list"][0]["lotSizeFilter"]["minOrderAmt"])
+        self.minOrderQty = float(
+            data["result"]["list"][0]["lotSizeFilter"]["minOrderQty"]
+        )
+        self.minOrderAmt = float(
+            data["result"]["list"][0]["lotSizeFilter"]["minOrderAmt"]
+        )
 
-        print(f"INFO: minOrderQty: {decimal.Decimal.from_float(self.minOrderQty)}({round(self.minOrderQty * price, 2)} {self.pair[1]}), minOrderAmt: {self.minOrderAmt}")
+        print(
+            f"INFO: minOrderQty: {decimal.Decimal.from_float(self.minOrderQty)}({round(self.minOrderQty * price, 2)} {self.pair[1]}), minOrderAmt: {self.minOrderAmt}"
+        )
 
     def load_history(self):
         header = arr.array("L", [])
@@ -872,7 +950,9 @@ class Trader:
                         self.ta.append_diff(pr)
                     self.ta.prices.append(pr)
                     counter += 1
-            print(f"INFO: load prices, size: {len(self.ta.prices)}, last: {self.ta.prices[-1]}")
+            print(
+                f"INFO: load prices, size: {len(self.ta.prices)}, last: {self.ta.prices[-1]}"
+            )
         except Exception as ex:
             print(f"ERROR: tr.initialize, {ex}")
             print(f"{repr(traceback.extract_tb(ex.__traceback__))}")
@@ -902,12 +982,22 @@ class Trader:
         self.get_pair_balance(data)
 
     async def ws_ticker(self):
-        ticker = WSClient(self.loop, stream_url="wss://stream.bybit.com/v5/public/spot", key=self.key, secret=self.secret)
+        ticker = WSClient(
+            self.loop,
+            stream_url="wss://stream.bybit.com/v5/public/spot",
+            key=self.key,
+            secret=self.secret,
+        )
         subscribtion = {"op": "subscribe", "args": [f"kline.1.{self.symbol}"]}
         await ticker.start(subscribtion, self.ticker_handler, need_auth=False)
 
     async def ws_user_data(self):
-        ticker = WSClient(self.loop, stream_url="wss://stream.bybit.com/v5/private", key=self.key, secret=self.secret)
+        ticker = WSClient(
+            self.loop,
+            stream_url="wss://stream.bybit.com/v5/private",
+            key=self.key,
+            secret=self.secret,
+        )
         channels = {"op": "subscribe", "args": ["wallet", "order"]}
         await ticker.start(channels, self.message_handler, need_auth=True)
 
@@ -927,10 +1017,14 @@ class Trader:
         self.ta.pair_balance[self.pair[1]] = native[1]
 
         total = sum(self.ta.pair_balance.values())
-        self.ta.real_ratio = round(self.ta.pair_balance[self.pair[0]] / total * 100.0, 2)
+        self.ta.real_ratio = round(
+            self.ta.pair_balance[self.pair[0]] / total * 100.0, 2
+        )
 
         print(
-            f"            Balance: {self.pair[0]}: {round(self.ta.pair_balance[self.pair[0]], 2)} ({self.ta.real_ratio} %), " f"{self.pair[1]}: {round(self.ta.pair_balance[self.pair[1]], 2)} ({round(100.0 - self.ta.real_ratio, 2)} %), " f"total:{round(total, 2)}",
+            f"            Balance: {self.pair[0]}: {round(self.ta.pair_balance[self.pair[0]], 2)} ({self.ta.real_ratio} %), "
+            f"{self.pair[1]}: {round(self.ta.pair_balance[self.pair[1]], 2)} ({round(100.0 - self.ta.real_ratio, 2)} %), "
+            f"total:{round(total, 2)}",
         )
 
     def message_handler(self, msg):
@@ -959,7 +1053,7 @@ class Trader:
                     qtty = float(data["qty"])
                     if data["side"] == "Sell":
                         qtty *= price
-                        
+
                     print(
                         f"MESSAGE: ------------- {data['side']}, ",
                         f"type:{data['orderType']}, ",
@@ -990,9 +1084,15 @@ class Trader:
                 if self.ta.buy_price_mean == 0.0:
                     self.ta.buy_price_mean = price
                 else:
-                    print(f"({self.ta.native_balance[0]} * {self.ta.buy_price_mean} + {qtty}) / ({self.ta.native_balance[0]} + {qtty} / {price})")
+                    print(
+                        f"({self.ta.native_balance[0]} * {self.ta.buy_price_mean} + {qtty}) / ({self.ta.native_balance[0]} + {qtty} / {price})"
+                    )
 
-                    self.ta.buy_price_mean = round((self.ta.native_balance[0] * self.ta.buy_price_mean + qtty) / (self.ta.native_balance[0] + btc), 2)
+                    self.ta.buy_price_mean = round(
+                        (self.ta.native_balance[0] * self.ta.buy_price_mean + qtty)
+                        / (self.ta.native_balance[0] + btc),
+                        2,
+                    )
                     self.loop.create_task(
                         Fire_alert(
                             bot_message=f"B: {self.ta.traded_price}, -{round(qtty, 2)}, mean: {self.ta.buy_price_mean}",
@@ -1007,7 +1107,11 @@ class Trader:
                 price = float(data["avgPrice"])
                 qtty = float(data["qty"])
 
-                self.ta.buy_price_mean = round((self.ta.native_balance[0] * self.ta.buy_price_mean - qtty * price) / (self.ta.native_balance[0] - qtty), 2)
+                self.ta.buy_price_mean = round(
+                    (self.ta.native_balance[0] * self.ta.buy_price_mean - qtty * price)
+                    / (self.ta.native_balance[0] - qtty),
+                    2,
+                )
                 self.ta.traded_price = price
                 self.ta.order_scale.increment_sell()
 
@@ -1063,7 +1167,11 @@ class Trader:
         self.ta.trend_crossunder.cross = False
 
         print(
-            f"traded_price:{self.ta.traded_price}\n" f"buy_price_mean:{self.ta.buy_price_mean}\n" f"trend_crossover:{self.ta.trend_crossover.cross}\n" f"trend_crossunder:{self.ta.trend_crossunder.cross}\n" f"portfolio_ratio:{self.ta.portfolio_ratio}",
+            f"traded_price:{self.ta.traded_price}\n"
+            f"buy_price_mean:{self.ta.buy_price_mean}\n"
+            f"trend_crossover:{self.ta.trend_crossover.cross}\n"
+            f"trend_crossunder:{self.ta.trend_crossunder.cross}\n"
+            f"portfolio_ratio:{self.ta.portfolio_ratio}",
         )
 
     def load_states(self):
@@ -1088,7 +1196,9 @@ class Trader:
         while counter < 20:
             counter += 1
             try:
-                resp_data, resp_status = await self.client.market_order(symbol=self.symbol, side="Buy", quantity_size=qtty)
+                resp_data, resp_status = await self.client.market_order(
+                    symbol=self.symbol, side="Buy", quantity_size=qtty
+                )
                 print(resp_data)
                 if resp_status != 200:
                     print(f"ERROR: {resp_data} \n\n resp_status: {resp_status}")
@@ -1113,7 +1223,9 @@ class Trader:
         while counter < 20:
             counter += 1
             try:
-                resp_data, resp_status = await self.client.market_order(symbol=self.symbol, side="Sell", quantity_size=qtty)
+                resp_data, resp_status = await self.client.market_order(
+                    symbol=self.symbol, side="Sell", quantity_size=qtty
+                )
                 print(resp_data)
                 if resp_status != 200:
                     print(f"ERROR: {resp_data} \n\n resp_status: {resp_status}")
@@ -1147,7 +1259,9 @@ class Trader:
     async def sell_signal(self):
         qty = self.ta.trade_profit / self.last_price
         if qty < self.minOrderQty:
-            print(f"Ma cross: SELL, low qtty:{qty * self.last_price}, minOrderQty: {self.minOrderQty}")
+            print(
+                f"Ma cross: SELL, low qtty:{qty * self.last_price}, minOrderQty: {self.minOrderQty}"
+            )
             return False
 
         await self.do_sell(qty)
@@ -1156,12 +1270,14 @@ class Trader:
     async def sell_all(self):
         qty = self.ta.native_balance[0]
         if qty < self.minOrderQty:
-            print(f"Ma cross: SELL, low qtty:{qty * self.last_price}, minOrderQty: {self.minOrderQty}")
+            print(
+                f"Ma cross: SELL, low qtty:{qty * self.last_price}, minOrderQty: {self.minOrderQty}"
+            )
             return False
 
         await self.do_sell(qty)
         return True
-    
+
     async def save_history_loop(self):
         while True:
             data_s1 = arr.array("d", self.ta.prices)
@@ -1190,7 +1306,7 @@ class Trader:
 
         while True:
             await asyncio.sleep(0.3)
-        
+
             if self.ta.ma_trend == 0.0 or self.ta.ma_fast_m == 0.0:
                 continue
 
@@ -1201,13 +1317,15 @@ class Trader:
                 self.save_states()
 
             try:
-                if self.ta.trend_crossover.cross_over(self.ta.ma_fast_m, self.ta.ma_trend):
+                if self.ta.trend_crossover.cross_over(
+                    self.ta.ma_fast_m, self.ta.ma_trend
+                ):
                     self.save_states()
 
                     # don't BUY while trend going down
                     if trend < 1.0:
                         continue
-                            
+
                     if abs(self.ta.percent_diff) < self.ta.rebalance_bottom:
                         continue
 
@@ -1216,13 +1334,15 @@ class Trader:
                             if await self.buy_signal():
                                 await asyncio.sleep(5.0)
 
-                if self.ta.trend_crossunder.cross_under(self.ta.ma_fast_m, self.ta.ma_trend):
+                if self.ta.trend_crossunder.cross_under(
+                    self.ta.ma_fast_m, self.ta.ma_trend
+                ):
                     self.save_states()
 
                     # don't SELL while trend going up
-                    if trend > 0.0:# or self.ta.trend :
+                    if trend > 0.0:  # or self.ta.trend :
                         continue
-                    
+
                     ### To do: add option to sell all at min ratio
                     # if self.ta.portfolio_ratio - 0.05 < self.ta.min_max_ratio[0]:
                     #     if await self.sell_all():
