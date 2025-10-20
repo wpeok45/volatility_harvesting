@@ -41,7 +41,6 @@ REBALANCE_ISDYNAMIC = os.getenv("REBALANCE_ISDYNAMIC", "false").lower() in (
     "yes",
     "y",
 )
-
 # secundes, time frame for amplitude calculation
 AMPLITUDE_TIME_FRAME = int(os.getenv("AMPLITUDE_TIME_FRAME", 120))
 # trading fee in percent, default 0.1%
