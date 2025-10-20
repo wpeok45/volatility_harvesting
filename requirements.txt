@@ -1,3 +1,5 @@
 aiohttp>=3.12.14
 aiodns>=3.2.0
 dotenv
+fastapi[standard]>=0.115.0
+uvicorn[standard]>=0.32.0
