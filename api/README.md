@@ -27,14 +27,30 @@ app.add_middleware(
 ```
 api/
 ├── __init__.py           # Export all routers
+├── models.py             # Pydantic models for requests/responses
+├── auth.py               # OAuth2 authentication (Bearer token)
 ├── dependencies.py       # Shared dependencies (traders, main_loop, data dirs)
-├── config.py            # Configuration management (save/load)
-├── bybit.py             # Routes for ByBit exchange
-├── binance.py           # Routes for Binance (placeholder)
-└── cryptocom.py         # Routes for Crypto.com (placeholder)
+├── config.py             # Configuration management (save/load)
+├── bybit.py              # Routes for ByBit exchange
+├── binance.py            # Routes for Binance (placeholder)
+└── cryptocom.py          # Routes for Crypto.com (placeholder)
 ```
 
 ## Files
+
+### `models.py` 🆕
+- **Authentication Models**: `Token`, `TokenData`, `User`
+- **Main API Models**: `ExchangeStatus`, `RootResponse`, `ExchangeInfo`, `ExchangesResponse`
+- **Trading Bot Models**: `StartResponse`, `StopResponse`, `StatusResponse`, `BalanceInfo`, `BalanceResponse`, `StatsResponse`
+- All models include field examples for automatic documentation
+- Centralized location for all Pydantic models
+
+### `auth.py` 🆕
+- OAuth2 password flow with JWT tokens
+- `authenticate_user()` - validate credentials from `.env`
+- `create_access_token()` - generate JWT tokens
+- `get_current_user()` - dependency for protected endpoints
+- Token expiration: 30 minutes (configurable)
 
 ### `dependencies.py`
 - Global variables: `traders`, `main_loop`
@@ -47,15 +63,17 @@ api/
 - `load_api_config()` - load settings from JSON
 
 ### `bybit.py`
-- `POST /bybit/start` - start trading bot
-- `POST /bybit/stop` - stop trading bot
-- `GET /bybit/status` - get bot status
-- `GET /bybit/balance` - get account balance
-- `GET /bybit/stats` - get trading statistics
+- `POST /bybit/start` - start trading bot (🔒 requires auth)
+- `POST /bybit/stop` - stop trading bot (🔒 requires auth)
+- `GET /bybit/status` - get bot status (🔒 requires auth)
+- `GET /bybit/balance` - get account balance (🔒 requires auth)
+- `GET /bybit/stats` - get trading statistics (🔒 requires auth)
 - `start_bybit_internal()` - internal function for auto-start
+- Complete response models with examples
 
 ### `binance.py` & `cryptocom.py`
 - Placeholder endpoints (501 Not Implemented)
+- Authentication required (🔒)
 - Ready for module implementation
 
 ## Usage
@@ -111,25 +129,60 @@ app.include_router(cryptocom_router)
 
 ## Adding a New Exchange
 
-1. Create file `api/exchange_name.py`
-2. Import dependencies:
+1. **Create file** `api/exchange_name.py`:
    ```python
-   from fastapi import APIRouter
+   from fastapi import APIRouter, HTTPException, Depends
    from .dependencies import traders, get_main_loop, EXCHANGE_DATA_DIRS
    from .config import save_api_config
-   ```
-3. Create router:
-   ```python
+   from .auth import get_current_user
+   from .models import User, StartResponse, StopResponse, StatusResponse
+   
    router = APIRouter(prefix="/exchange", tags=["Exchange"])
+   
+   @router.post("/start", response_model=StartResponse)
+   async def start_exchange_trading(current_user: User = Depends(get_current_user)):
+       """Start trading bot (requires authentication)"""
+       # Implementation here
+       return {"message": "Started", "exchange": "exchange", "status": "running", "is_started": True}
    ```
-4. Add endpoints (start, stop, status, etc.)
-5. Import in `api/__init__.py`:
+
+2. **Define models** (if needed) in `api/models.py`:
+   ```python
+   class ExchangeCustomResponse(BaseModel):
+       """Custom response for specific exchange"""
+       field: str = Field(default=..., examples=["value"])
+   ```
+
+3. **Import in** `api/__init__.py`:
    ```python
    from .exchange_name import router as exchange_router
    ```
-6. Include in `api_main.py`:
+
+4. **Include in** `api_main.py`:
    ```python
+   from api import bybit_router, binance_router, cryptocom_router, exchange_router
    app.include_router(exchange_router)
+   ```
+
+5. **Add to traders dict** in `api/dependencies.py`:
+   ```python
+   traders = {
+       "exchange": {
+           "instance": None,
+           "task": None,
+           "tasks": [],
+           "enabled": True,
+           "name": "Exchange Name",
+           "is_started": False
+       }
+   }
+   ```
+
+6. **Create data directory** in `EXCHANGE_DATA_DIRS`:
+   ```python
+   EXCHANGE_DATA_DIRS = {
+       "exchange": Path("data/exchange")
+   }
    ```
 
 ## Advantages of Modular Structure
@@ -140,4 +193,7 @@ app.include_router(cryptocom_router)
 ✅ Simple testing of individual modules  
 ✅ Code reusability through dependencies  
 ✅ Automatic documentation with tags  
-✅ Independent data storage per exchange
+✅ Independent data storage per exchange  
+✅ Centralized authentication  
+✅ Type-safe with Pydantic models  
+✅ Complete API documentation with examples

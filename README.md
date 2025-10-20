@@ -20,6 +20,8 @@ volatility_harvesting/
 ├── vh_float.py              # ByBit spot trader implementation
 ├── api/                     # Modular API structure
 │   ├── __init__.py          # Export all routers
+│   ├── models.py            # Pydantic models for requests/responses
+│   ├── auth.py              # OAuth2 authentication (Bearer token)
 │   ├── dependencies.py      # Shared state and utilities
 │   ├── config.py            # Configuration management
 │   ├── bybit.py             # ByBit exchange routes
@@ -32,10 +34,11 @@ volatility_harvesting/
 │   └── cryptocom/           # Crypto.com data directory
 ├── api_config.json          # API state persistence (auto-generated)
 ├── requirements.txt         # Python dependencies
+├── .env                     # Configuration (copy from .env_example)
 └── docker-compose.yaml      # Docker configuration
 ```
 
-See [API_STRUCTURE.md](API_STRUCTURE.md) and [api/README.md](api/README.md) for detailed API documentation.
+See [api/README.md](api/README.md) for detailed API documentation.
 
 ## Installation
 
@@ -59,6 +62,8 @@ python3 -m pip install -r requirements.txt
    ```
 
 2. Edit `.env` file and configure the following parameters:
+   
+   **Trading Configuration:**
    - `API_KEY` - Your Bybit API Key ([Get it here](https://www.bybit.com/app/user/api-management))
    - `SECRET_KEY` - Your Bybit API Secret
    - `STABLE_PAIR` - Stablecoin to use (default: USDT)
@@ -73,6 +78,11 @@ python3 -m pip install -r requirements.txt
    - `FEE` - Trading fee percentage (default: 0.1%)
    - `TGBOT_TOKEN` - Telegram bot token for notifications (optional)
    - `TGBOT_CHATID` - Telegram chat ID for notifications (optional)
+   
+   **API Authentication (OAuth2):**
+   - `ADMIN_USERNAME` - API admin username (default: admin)
+   - `ADMIN_PASSWORD` - API admin password (**change this!**)
+   - `JWT_SECRET_KEY` - JWT secret key for token signing (**generate a strong random key!**)
 
 3. Ensure you have sufficient balance in your Bybit spot account
 
@@ -93,38 +103,67 @@ uvicorn api_main:app --host 0.0.0.0 --port 8000
 ```
 
 The API features:
+- ✅ **OAuth2 Authentication**: Secure Bearer token authentication
 - ✅ **Auto-start**: Bots with `is_started=true` restart automatically after server restart
 - ✅ **State persistence**: Configuration saved to `api_config.json` on every change
 - ✅ **Isolated data**: Each exchange stores data in `data/<exchange_name>/` directory
 - ✅ **Modular routes**: Separate router files for each exchange in `api/` folder
+- ✅ **Response samples**: Complete request/response examples in documentation
+- ✅ **CORS enabled**: Unrestricted CORS for development (⚠️ restrict in production)
 
-Then control via API:
+#### Authentication
+
+First, get an access token:
 
 ```bash
-# Start ByBit trading
-curl -X POST http://localhost:8000/bybit/start
+# Get access token
+curl -X POST "http://localhost:8000/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=admin&password=yourpassword"
 
-# Check status
-curl http://localhost:8000/bybit/status
-
-# Get balance
-curl http://localhost:8000/bybit/balance
-
-# Get trading statistics
-curl http://localhost:8000/bybit/stats
-
-# Stop trading
-curl -X POST http://localhost:8000/bybit/stop
-
-# List all exchanges
-curl http://localhost:8000/exchanges
+# Response: {"access_token": "eyJhbGc...", "token_type": "bearer"}
 ```
 
-Access web interface:
-- **API Docs (Swagger)**: http://localhost:8000/docs
+Then use the token for all API requests:
+
+```bash
+# Set your token
+TOKEN="your_access_token_here"
+
+# Start ByBit trading
+curl -X POST "http://localhost:8000/bybit/start" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Check status
+curl "http://localhost:8000/bybit/status" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Get balance
+curl "http://localhost:8000/bybit/balance" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Get trading statistics
+curl "http://localhost:8000/bybit/stats" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Stop trading
+curl -X POST "http://localhost:8000/bybit/stop" \
+  -H "Authorization: Bearer $TOKEN"
+
+# List all exchanges
+curl "http://localhost:8000/exchanges" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### Web Interface
+
+Access interactive documentation:
+- **API Docs (Swagger UI)**: http://localhost:8000/docs
+  - Click "Authorize" button and enter your credentials
+  - Test all endpoints interactively
 - **Alternative Docs (ReDoc)**: http://localhost:8000/redoc
 
-See [API_STRUCTURE.md](API_STRUCTURE.md) and [api/README.md](api/README.md) for complete API documentation.
+See [api/README.md](api/README.md) for complete API documentation.
 
 ### Method 2: Using Python directly (ByBit only):
 
@@ -158,11 +197,13 @@ docker compose down
 - **Console output**: Real-time trading activity
 - **Log files**: `data/<exchange>/trading.log` - detailed trading history (auto-rotated at 10MB, keeps 5 backups)
 - **State files**: `data/<exchange>/BTCUSDC.json` - current trading state
+- **History files**: `data/<exchange>/data_s1.dat` - trade history for analysis
 - **Telegram notifications**: Trade alerts (if configured in `.env`)
-- **FastAPI endpoints**: Programmatic access to all trading data and controls
-  - `/bybit/status` - Bot status and running state
-  - `/bybit/balance` - Real-time account balance
-  - `/bybit/stats` - Trading statistics and analysis
+- **FastAPI endpoints**: Programmatic access to all trading data and controls (requires authentication)
+  - `POST /token` - Get access token (no auth required)
+  - `GET /bybit/status` - Bot status and running state
+  - `GET /bybit/balance` - Real-time account balance
+  - `GET /bybit/stats` - Trading statistics and analysis
 
 ## API Architecture
 
@@ -170,19 +211,33 @@ The project uses a **modular FastAPI architecture** for managing multiple exchan
 
 ### Key Features
 
-- **Modular Design**: Each exchange has its own router file (`api/bybit.py`, `api/binance.py`, etc.)
-- **Shared Dependencies**: Common utilities in `api/dependencies.py` (traders dict, event loop management)
-- **Configuration Management**: Auto-save to `api_config.json` on every state change
-- **Data Isolation**: Each exchange stores data in `data/<exchange_name>/` directory
-- **Auto-start**: Bots with `is_started=true` restart automatically after server restart
-- **Task Management**: Proper cancellation of main loop + all background tasks (WebSockets, etc.)
+- **🔐 OAuth2 Authentication**: Secure Bearer token authentication with JWT
+- **📦 Modular Design**: Each exchange has its own router file (`api/bybit.py`, `api/binance.py`, etc.)
+- **🎯 Pydantic Models**: Centralized request/response models in `api/models.py`
+- **🔄 Shared Dependencies**: Common utilities in `api/dependencies.py` (traders dict, event loop management)
+- **💾 Configuration Management**: Auto-save to `api_config.json` on every state change
+- **📁 Data Isolation**: Each exchange stores data in `data/<exchange_name>/` directory
+- **🚀 Auto-start**: Bots with `is_started=true` restart automatically after server restart
+- **⚙️ Task Management**: Proper cancellation of main loop + all background tasks (WebSockets, etc.)
+- **📚 Complete Documentation**: Request/response examples in Swagger UI and ReDoc
+- **🌐 CORS Enabled**: Unrestricted CORS for development (⚠️ configure properly for production)
+
+### Security Notes
+
+⚠️ **Important for Production:**
+- Change `ADMIN_PASSWORD` in `.env` to a strong password
+- Generate a strong `JWT_SECRET_KEY` (use: `openssl rand -hex 32`)
+- Restrict CORS origins in `api_main.py` (currently set to `["*"]`)
+- Use HTTPS in production
+- Consider rate limiting and additional security measures
 
 ### Adding a New Exchange
 
 1. Create `api/exchange_name.py` with FastAPI router
-2. Implement start/stop/status endpoints
-3. Add router to `api/__init__.py`
-4. Include router in `api_main.py`
+2. Define response models in `api/models.py` or create exchange-specific models
+3. Implement start/stop/status endpoints with authentication
+4. Add router to `api/__init__.py`
+5. Include router in `api_main.py`
 
 See [api/README.md](api/README.md) for step-by-step guide with code examples.
 
