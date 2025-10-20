@@ -23,28 +23,28 @@ dotenv.load_dotenv(override=True)
 API_KEY = os.getenv("API_KEY", "")
 SECRET_KEY = os.getenv("SECRET_KEY", "")
 STABLE_PAIR = os.getenv("STABLE_PAIR", "USDT")
-MA_LENGTH = float(os.getenv("MA_LENGTH", 24.0))  # trading signals length for MA, EMA
-RANGE = float(
-    os.getenv("RANGE", 50.0)
-)  # range = 50% of ATH, ratio_per_point = 1.0 / RANGE (each price tick changes portfolio ratio like ratio +(-) ratio_per_point)
-MIN_RATIO = float(
-    os.getenv("MIN_RATIO", 0.01)
-)  # minimum portfolio bitcoin to stablecoin ratio 1% / 97%
-MAX_RATIO = float(
-    os.getenv("MAX_RATIO", 0.99)
-)  # maximum portfolio bitcoin to stablecoin ratio 99% /3%
-REBALANCE_TOP = float(os.getenv("REBALANCE_TOP", 3.0))  # % rebalance(SELL)
-REBALANCE_BOTTOM = float(os.getenv("REBALANCE_BOTTOM", 3.0))  # % rebalance(BUY)
+# trading signals length for MA, EMA
+MA_LENGTH = float(os.getenv("MA_LENGTH", 24.0))
+# range = 50% of ATH, ratio_per_point = 1.0 / RANGE (each price tick changes portfolio ratio like ratio +(-) ratio_per_point)
+RANGE = float(os.getenv("RANGE", 50.0))
+# minimum portfolio bitcoin to stablecoin ratio 1% / 97%
+MIN_RATIO = float(os.getenv("MIN_RATIO", 0.01))
+# maximum portfolio bitcoin to stablecoin ratio 99% /3%
+MAX_RATIO = float(os.getenv("MAX_RATIO", 0.99))
+# % rebalance(SELL)
+REBALANCE_TOP = float(os.getenv("REBALANCE_TOP", 3.0))
+# % rebalance(BUY)
+REBALANCE_BOTTOM = float(os.getenv("REBALANCE_BOTTOM", 3.0))
 REBALANCE_ISDYNAMIC = os.getenv("REBALANCE_ISDYNAMIC", "false").lower() in (
     "true",
     "1",
     "yes",
     "y",
 )
-AMPLITUDE_TIME_FRAME = int(
-    os.getenv("AMPLITUDE_TIME_FRAME", 120)
-)  # secundes, time frame for amplitude calculation
-FEE = float(os.getenv("FEE", 0.1))  # trading fee in percent, default 0.1%
+# secundes, time frame for amplitude calculation
+AMPLITUDE_TIME_FRAME = int(os.getenv("AMPLITUDE_TIME_FRAME", 120))
+# trading fee in percent, default 0.1%
+FEE = float(os.getenv("FEE", 0.1))
 TGBOT_TOKEN = os.getenv("TGBOT_TOKEN", "")
 TGBOT_CHATID = os.getenv("TGBOT_CHATID", "")
 
