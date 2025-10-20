@@ -27,9 +27,9 @@ STABLE_PAIR = os.getenv("STABLE_PAIR", "USDT")
 MA_LENGTH = float(os.getenv("MA_LENGTH", 24.0))
 # range = 50% of ATH, ratio_per_point = 1.0 / RANGE (each price tick changes portfolio ratio like ratio +(-) ratio_per_point)
 RANGE = float(os.getenv("RANGE", 50.0))
-# minimum portfolio bitcoin to stablecoin ratio 1% / 97%
+# minimum portfolio bitcoin to stablecoin ratio 1% / 99%
 MIN_RATIO = float(os.getenv("MIN_RATIO", 0.01))
-# maximum portfolio bitcoin to stablecoin ratio 99% /3%
+# maximum portfolio bitcoin to stablecoin ratio 99% /1%
 MAX_RATIO = float(os.getenv("MAX_RATIO", 0.99))
 # % rebalance(SELL)
 REBALANCE_TOP = float(os.getenv("REBALANCE_TOP", 3.0))
@@ -41,7 +41,6 @@ REBALANCE_ISDYNAMIC = os.getenv("REBALANCE_ISDYNAMIC", "false").lower() in (
     "yes",
     "y",
 )
-
 # secundes, time frame for amplitude calculation
 AMPLITUDE_TIME_FRAME = int(os.getenv("AMPLITUDE_TIME_FRAME", 120))
 # trading fee in percent, default 0.1%
@@ -63,6 +62,12 @@ async def Fire_alert(bot_message: str, bot_token: str, bot_chatID: str):
                 print("************************* allert sent")
     except Exception as ex:
         print(f"ERROR: Fire_alert, {repr(traceback.extract_tb(ex.__traceback__))}")
+
+
+def log(data: str):
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open("trading.log", mode="a", encoding="UTF-8") as f:
+        print(f"[{timestamp}] {data}", file=f)
 
 
 def rotate_log_file(log_file: str, max_files: int = 5, max_size_mb: float = 10.0):
@@ -847,10 +852,7 @@ class TradeAnalyse:
             )
 
             print(data)
-
-            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            with open("trading.log", mode="a", encoding="UTF-8") as f:
-                print(f"[{timestamp}] {data}", file=f)
+            log(data)
 
 
 class Trader:
@@ -1055,13 +1057,15 @@ class Trader:
                     if data["side"] == "Sell":
                         qtty *= price
 
-                    print(
-                        f"MESSAGE: ------------- {data['side']}, ",
-                        f"type:{data['orderType']}, ",
-                        f"Current status:{data['orderStatus']}, ",
-                        f"price:{price}, q:{qtty} {self.pair[1]}",
+                    out = (
+                        f"MESSAGE: ------------- {data['side']}, "
+                        f"type:{data['orderType']}, "
+                        f"Current status:{data['orderStatus']}, "
+                        f"price:{price}, q:{qtty} {self.pair[1]}"
                     )
 
+                    print(out)
+                    log(out)
                 case _:
                     pass
 
@@ -1085,9 +1089,9 @@ class Trader:
                 if self.ta.buy_price_mean == 0.0:
                     self.ta.buy_price_mean = price
                 else:
-                    print(
-                        f"({self.ta.native_balance[0]} * {self.ta.buy_price_mean} + {qtty}) / ({self.ta.native_balance[0]} + {qtty} / {price})"
-                    )
+                    # print(
+                    #     f"({self.ta.native_balance[0]} * {self.ta.buy_price_mean} + {qtty}) / ({self.ta.native_balance[0]} + {qtty} / {price})"
+                    # )
 
                     self.ta.buy_price_mean = round(
                         (self.ta.native_balance[0] * self.ta.buy_price_mean + qtty)
