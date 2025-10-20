@@ -6,11 +6,36 @@ A multi-exchange spot trading bot implementing volatility harvesting strategy wi
 
 ## Supported Exchanges
 
-- ✅ **ByBit** - Fully implemented (`vh_float.py`)
-- 🔜 **Binance** - Coming soon (placeholder ready)
-- 🔜 **Crypto.com** - Coming soon (placeholder ready)
+- ✅ **ByBit** - Fully implemented (`vh_float.py`, `api/bybit.py`)
+- 🔜 **Binance** - Coming soon (placeholder ready in `api/binance.py`)
+- 🔜 **Crypto.com** - Coming soon (placeholder ready in `api/cryptocom.py`)
 
-The bot uses a modular architecture via FastAPI, making it easy to add new exchanges.
+The bot uses a **modular architecture** via FastAPI with separate routers for each exchange, making it easy to add new exchanges. Each exchange maintains its own isolated data directory.
+
+## Project Structure
+
+```
+volatility_harvesting/
+├── api_main.py              # Main FastAPI application entry point
+├── vh_float.py              # ByBit spot trader implementation
+├── api/                     # Modular API structure
+│   ├── __init__.py          # Export all routers
+│   ├── dependencies.py      # Shared state and utilities
+│   ├── config.py            # Configuration management
+│   ├── bybit.py             # ByBit exchange routes
+│   ├── binance.py           # Binance routes (placeholder)
+│   ├── cryptocom.py         # Crypto.com routes (placeholder)
+│   └── README.md            # API module documentation
+├── data/                    # Production data (auto-created)
+│   ├── bybit/               # ByBit: trading.log, BTCUSDC.json, data_s1.dat
+│   ├── binance/             # Binance data directory
+│   └── cryptocom/           # Crypto.com data directory
+├── api_config.json          # API state persistence (auto-generated)
+├── requirements.txt         # Python dependencies
+└── docker-compose.yaml      # Docker configuration
+```
+
+See [API_STRUCTURE.md](API_STRUCTURE.md) and [api/README.md](api/README.md) for detailed API documentation.
 
 ## Installation
 
@@ -67,6 +92,12 @@ Or with uvicorn:
 uvicorn api_main:app --host 0.0.0.0 --port 8000
 ```
 
+The API features:
+- ✅ **Auto-start**: Bots with `is_started=true` restart automatically after server restart
+- ✅ **State persistence**: Configuration saved to `api_config.json` on every change
+- ✅ **Isolated data**: Each exchange stores data in `data/<exchange_name>/` directory
+- ✅ **Modular routes**: Separate router files for each exchange in `api/` folder
+
 Then control via API:
 
 ```bash
@@ -79,15 +110,21 @@ curl http://localhost:8000/bybit/status
 # Get balance
 curl http://localhost:8000/bybit/balance
 
+# Get trading statistics
+curl http://localhost:8000/bybit/stats
+
 # Stop trading
 curl -X POST http://localhost:8000/bybit/stop
+
+# List all exchanges
+curl http://localhost:8000/exchanges
 ```
 
 Access web interface:
 - **API Docs (Swagger)**: http://localhost:8000/docs
 - **Alternative Docs (ReDoc)**: http://localhost:8000/redoc
 
-See [API_STRUCTURE.md](API_STRUCTURE.md) for complete API documentation.
+See [API_STRUCTURE.md](API_STRUCTURE.md) and [api/README.md](api/README.md) for complete API documentation.
 
 ### Method 2: Using Python directly (ByBit only):
 
@@ -118,10 +155,36 @@ docker compose down
 
 ## Monitoring
 
-- Console output shows real-time trading activity
-- `trading.log` file contains detailed trading history (automatically rotated at 10MB, keeps 5 backups)
-- Telegram notifications (if configured) provide trade alerts
-- **FastAPI endpoints** provide programmatic access to all trading data and controls
+- **Console output**: Real-time trading activity
+- **Log files**: `data/<exchange>/trading.log` - detailed trading history (auto-rotated at 10MB, keeps 5 backups)
+- **State files**: `data/<exchange>/BTCUSDC.json` - current trading state
+- **Telegram notifications**: Trade alerts (if configured in `.env`)
+- **FastAPI endpoints**: Programmatic access to all trading data and controls
+  - `/bybit/status` - Bot status and running state
+  - `/bybit/balance` - Real-time account balance
+  - `/bybit/stats` - Trading statistics and analysis
+
+## API Architecture
+
+The project uses a **modular FastAPI architecture** for managing multiple exchanges:
+
+### Key Features
+
+- **Modular Design**: Each exchange has its own router file (`api/bybit.py`, `api/binance.py`, etc.)
+- **Shared Dependencies**: Common utilities in `api/dependencies.py` (traders dict, event loop management)
+- **Configuration Management**: Auto-save to `api_config.json` on every state change
+- **Data Isolation**: Each exchange stores data in `data/<exchange_name>/` directory
+- **Auto-start**: Bots with `is_started=true` restart automatically after server restart
+- **Task Management**: Proper cancellation of main loop + all background tasks (WebSockets, etc.)
+
+### Adding a New Exchange
+
+1. Create `api/exchange_name.py` with FastAPI router
+2. Implement start/stop/status endpoints
+3. Add router to `api/__init__.py`
+4. Include router in `api_main.py`
+
+See [api/README.md](api/README.md) for step-by-step guide with code examples.
 
 --------------
 
