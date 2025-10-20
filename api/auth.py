@@ -14,7 +14,7 @@ from pydantic import BaseModel
 
 # Load environment variables
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "lkjn342fn3#pi45n6$KJSDF523n")  # Change this!
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "lkjn342fn3#pi45n6$KJSDF523n")
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
