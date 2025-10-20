@@ -1,16 +1,18 @@
 """
 Crypto.com exchange API routes (placeholder)
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 
 from .dependencies import traders
+from .auth import get_current_user
+from .models import User
 
 router = APIRouter(prefix="/cryptocom", tags=["Crypto.com"])
 
 
 @router.get("/info")
-async def cryptocom_info():
-    """Crypto.com module information"""
+async def cryptocom_info(current_user: User = Depends(get_current_user)):
+    """Crypto.com module information (requires authentication)"""
     return {
         "exchange": "cryptocom",
         "status": "not_implemented",
@@ -20,8 +22,8 @@ async def cryptocom_info():
 
 
 @router.post("/start")
-async def start_cryptocom_trading():
-    """Start Crypto.com trading bot (not yet implemented)"""
+async def start_cryptocom_trading(current_user: User = Depends(get_current_user)):
+    """Start Crypto.com trading bot (not yet implemented, requires authentication)"""
     raise HTTPException(
         status_code=501,
         detail="Crypto.com trading module is not yet implemented. Coming soon!"
@@ -29,8 +31,8 @@ async def start_cryptocom_trading():
 
 
 @router.post("/stop")
-async def stop_cryptocom_trading():
-    """Stop Crypto.com trading bot (not yet implemented)"""
+async def stop_cryptocom_trading(current_user: User = Depends(get_current_user)):
+    """Stop Crypto.com trading bot (not yet implemented, requires authentication)"""
     raise HTTPException(
         status_code=501,
         detail="Crypto.com trading module is not yet implemented. Coming soon!"
@@ -38,9 +40,10 @@ async def stop_cryptocom_trading():
 
 
 @router.get("/status")
-async def get_cryptocom_status():
-    """Get Crypto.com bot status (not yet implemented)"""
+async def get_cryptocom_status(current_user: User = Depends(get_current_user)):
+    """Get Crypto.com bot status (not yet implemented, requires authentication)"""
     raise HTTPException(
         status_code=501,
         detail="Crypto.com trading module is not yet implemented. Coming soon!"
     )
+

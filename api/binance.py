@@ -4,7 +4,8 @@ Binance exchange API routes (placeholder)
 from fastapi import APIRouter, HTTPException, Depends
 
 from .dependencies import traders
-from .auth import get_current_user, User
+from .auth import get_current_user
+from .models import User
 
 router = APIRouter(prefix="/binance", tags=["Binance"])
 

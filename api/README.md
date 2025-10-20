@@ -60,6 +60,46 @@ api/
 
 ## Usage
 
+### Authentication
+
+All endpoints except `/` (root) and `/token` require OAuth2 authentication:
+
+1. **Get Access Token:**
+   ```bash
+   curl -X POST http://localhost:8000/token \
+     -d "username=admin&password=yourpassword"
+   ```
+   
+   Response:
+   ```json
+   {
+     "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+     "token_type": "bearer"
+   }
+   ```
+
+2. **Use Token in Requests:**
+   ```bash
+   curl -H "Authorization: Bearer YOUR_TOKEN" \
+     http://localhost:8000/bybit/status
+   ```
+
+### Interactive Documentation
+
+Visit http://localhost:8000/docs to use the interactive Swagger UI:
+- Click "Authorize" button (🔒 icon)
+- Enter username and password
+- All subsequent requests will include the token automatically
+
+### Response Models
+
+All endpoints return structured JSON responses with proper OpenAPI schemas:
+- **Request samples**: Auto-generated from endpoint parameters
+- **Response samples**: Defined with Pydantic models and examples
+- **Error responses**: Documented with status codes (400, 401, 500, etc.)
+
+### Code Example
+
 ```python
 from api import bybit_router, binance_router, cryptocom_router
 

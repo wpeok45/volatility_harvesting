@@ -6,11 +6,22 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import JSONResponse
 
 from .dependencies import traders, get_main_loop, EXCHANGE_DATA_DIRS
-from .auth import get_current_user, User
+from .auth import get_current_user
+from .models import (
+    User,
+    StartResponse,
+    StopResponse,
+    StatusResponse,
+    BalanceInfo,
+    BalanceResponse,
+    StatsResponse
+)
 from vh_float import Trader as ByBitSpotTrader, API_KEY as BYBIT_API_KEY, SECRET_KEY as BYBIT_SECRET_KEY
 
 router = APIRouter(prefix="/bybit", tags=["ByBit"])
 
+
+# ==================== Internal Functions ====================
 
 async def start_bybit_internal():
     """Internal function to start ByBit bot (used for auto-start)"""
@@ -70,9 +81,30 @@ async def start_bybit_internal():
         return False
 
 
-@router.post("/start")
+@router.post("/start", response_model=StartResponse, responses={
+    200: {
+        "description": "Trading bot started successfully",
+        "content": {
+            "application/json": {
+                "example": {
+                    "message": "ByBit trading bot started successfully",
+                    "exchange": "bybit",
+                    "status": "running",
+                    "is_started": True
+                }
+            }
+        }
+    },
+    400: {"description": "Bot already running or module not enabled"},
+    500: {"description": "Internal server error"}
+})
 async def start_bybit_trading(current_user: User = Depends(get_current_user)):
-    """Start the ByBit trading bot (requires authentication)"""
+    """
+    Start the ByBit trading bot (requires authentication).
+    
+    This endpoint initializes the trading bot, connects to WebSocket streams,
+    and starts the automated trading loop.
+    """
     from .config import save_api_config
     
     main_loop = get_main_loop()
@@ -125,23 +157,40 @@ async def start_bybit_trading(current_user: User = Depends(get_current_user)):
         traders["bybit"]["is_started"] = True
         save_api_config()
         
-        return JSONResponse(
-            status_code=200,
-            content={
-                "exchange": "bybit",
-                "message": "ByBit trading bot started successfully",
-                "symbol": trader_instance.symbol,
-                "status": "running",
-                "is_started": True
-            }
-        )
+        return {
+            "message": "ByBit trading bot started successfully",
+            "exchange": "bybit",
+            "status": "running",
+            "is_started": True
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start ByBit trading bot: {str(e)}")
 
 
-@router.post("/stop")
+@router.post("/stop", response_model=StopResponse, responses={
+    200: {
+        "description": "Trading bot stopped successfully",
+        "content": {
+            "application/json": {
+                "example": {
+                    "message": "ByBit trading bot stopped successfully",
+                    "exchange": "bybit",
+                    "status": "stopped",
+                    "is_started": False
+                }
+            }
+        }
+    },
+    400: {"description": "Bot is not running"},
+    500: {"description": "Internal server error"}
+})
 async def stop_bybit_trading(current_user: User = Depends(get_current_user)):
-    """Stop the ByBit trading bot (requires authentication)"""
+    """
+    Stop the ByBit trading bot (requires authentication).
+    
+    This endpoint gracefully stops the trading bot, cancels all tasks,
+    and closes WebSocket connections.
+    """
     from .config import save_api_config
     
     trader_task = traders["bybit"]["task"]
@@ -173,20 +222,42 @@ async def stop_bybit_trading(current_user: User = Depends(get_current_user)):
     traders["bybit"]["is_started"] = False
     save_api_config()
     
-    return JSONResponse(
-        status_code=200,
-        content={
-            "exchange": "bybit",
-            "message": "ByBit trading bot stopped successfully",
-            "status": "stopped",
-            "is_started": False
+    return {
+        "message": "ByBit trading bot stopped successfully",
+        "exchange": "bybit",
+        "status": "stopped",
+        "is_started": False
+    }
+
+
+@router.get("/status", response_model=StatusResponse, responses={
+    200: {
+        "description": "Current bot status",
+        "content": {
+            "application/json": {
+                "example": {
+                    "exchange": "bybit",
+                    "status": "running",
+                    "is_started": True,
+                    "symbol": "BTCUSDC",
+                    "ratio": 0.45,
+                    "range": 50000.0,
+                    "ma_length": 24,
+                    "rebalance_top": 3.0,
+                    "rebalance_bottom": 3.0,
+                    "message": "Bot is actively trading"
+                }
+            }
         }
-    )
-
-
-@router.get("/status")
+    }
+})
 async def get_bybit_status(current_user: User = Depends(get_current_user)):
-    """Get current ByBit trading bot status (requires authentication)"""
+    """
+    Get current ByBit trading bot status (requires authentication).
+    
+    Returns detailed information about the bot's current state,
+    configuration, and trading parameters.
+    """
     trader_instance = traders["bybit"]["instance"]
     
     if not trader_instance:
@@ -217,9 +288,31 @@ async def get_bybit_status(current_user: User = Depends(get_current_user)):
     return status_info
 
 
-@router.get("/balance")
+@router.get("/balance", response_model=BalanceResponse, responses={
+    200: {
+        "description": "Current account balance",
+        "content": {
+            "application/json": {
+                "example": {
+                    "exchange": "bybit",
+                    "balances": [
+                        {"coin": "BTC", "balance": 0.15234567, "usd_value": 15234.56},
+                        {"coin": "USDC", "balance": 15234.56, "usd_value": 15234.56}
+                    ],
+                    "total_usd": 30469.12
+                }
+            }
+        }
+    },
+    400: {"description": "Bot not initialized"}
+})
 async def get_bybit_balance(current_user: User = Depends(get_current_user)):
-    """Get current ByBit account balance (requires authentication)"""
+    """
+    Get current ByBit account balance (requires authentication).
+    
+    Returns detailed balance information for all assets in the account,
+    including native balances and USD values.
+    """
     trader_instance = traders["bybit"]["instance"]
     
     if not trader_instance:
@@ -227,21 +320,73 @@ async def get_bybit_balance(current_user: User = Depends(get_current_user)):
     
     await trader_instance.get_account_balance()
     
+    # Calculate USD values
+    crypto_balance = trader_instance.ta.native_balance[0]
+    stable_balance = trader_instance.ta.native_balance[1]
+    crypto_usd = crypto_balance * trader_instance.last_price if trader_instance.last_price else 0
+    
     return {
         "exchange": "bybit",
-        "native_balance": {
-            trader_instance.pair[0]: trader_instance.ta.native_balance[0],
-            trader_instance.pair[1]: trader_instance.ta.native_balance[1]
-        },
-        "pair_balance": trader_instance.ta.pair_balance,
-        "real_ratio": trader_instance.ta.real_ratio,
-        "last_price": trader_instance.last_price
+        "balances": [
+            {
+                "coin": trader_instance.pair[0],
+                "balance": crypto_balance,
+                "usd_value": crypto_usd
+            },
+            {
+                "coin": trader_instance.pair[1],
+                "balance": stable_balance,
+                "usd_value": stable_balance
+            }
+        ],
+        "total_usd": crypto_usd + stable_balance
     }
 
 
-@router.get("/stats")
+@router.get("/stats", response_model=StatsResponse, responses={
+    200: {
+        "description": "Trading statistics",
+        "content": {
+            "application/json": {
+                "example": {
+                    "exchange": "bybit",
+                    "symbol": "BTCUSDC",
+                    "last_price": 98765.43,
+                    "traded_price": 98500.00,
+                    "buy_price_mean": 97800.50,
+                    "trade_profit": 1234.56,
+                    "percent_diff": 1.5,
+                    "price_diff": 265.43,
+                    "portfolio_ratio": 45.0,
+                    "real_ratio": 0.45,
+                    "ATH": 100000.0,
+                    "work_range": 50000.0,
+                    "local_range": 5000.0,
+                    "rebalance_top": 3.0,
+                    "rebalance_bottom": 3.0,
+                    "min_profitable_percent": 0.2,
+                    "order_scale": {
+                        "enabled": True,
+                        "buy_counter": 2,
+                        "sell_counter": 1,
+                        "buy_percent": 1.5,
+                        "sell_percent": 3.0
+                    },
+                    "impuls": 500.0,
+                    "impuls_percent": 0.5
+                }
+            }
+        }
+    },
+    400: {"description": "Bot not initialized"}
+})
 async def get_bybit_stats(current_user: User = Depends(get_current_user)):
-    """Get ByBit trading statistics (requires authentication)"""
+    """
+    Get ByBit trading statistics (requires authentication).
+    
+    Returns comprehensive trading statistics including profit/loss,
+    trade counts, and recent trading activity.
+    """
     trader_instance = traders["bybit"]["instance"]
     
     if not trader_instance:
