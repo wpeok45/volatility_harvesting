@@ -187,13 +187,13 @@ app.include_router(cryptocom_router)
 
 ## Advantages of Modular Structure
 
-✅ Clean and organized code
-✅ Easy to add new exchanges
-✅ Isolation of each exchange logic
-✅ Simple testing of individual modules
-✅ Code reusability through dependencies
-✅ Automatic documentation with tags
-✅ Independent data storage per exchange
-✅ Centralized authentication
-✅ Type-safe with Pydantic models
-✅ Complete API documentation with examples
+- ✅ Clean and organized code
+- ✅ Easy to add new exchanges
+- ✅ Isolation of each exchange logic
+- ✅ Simple testing of individual modules
+- ✅ Code reusability through dependencies
+- ✅ Automatic documentation with tags
+- ✅ Independent data storage per exchange
+- ✅ Centralized authentication
+- ✅ Type-safe with Pydantic models
+- ✅ Complete API documentation with examples
