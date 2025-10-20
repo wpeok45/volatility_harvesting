@@ -2,7 +2,15 @@
 
 ![alt text](pnl.png)
 
-A Bybit API spot trading bot implementing volatility harvesting strategy with dynamic portfolio rebalancing.
+A multi-exchange spot trading bot implementing volatility harvesting strategy with dynamic portfolio rebalancing.
+
+## Supported Exchanges
+
+- ✅ **ByBit** - Fully implemented (`vh_float.py`)
+- 🔜 **Binance** - Coming soon (placeholder ready)
+- 🔜 **Crypto.com** - Coming soon (placeholder ready)
+
+The bot uses a modular architecture via FastAPI, making it easy to add new exchanges.
 
 ## Installation
 
@@ -45,13 +53,49 @@ python3 -m pip install -r requirements.txt
 
 ## Running the Bot
 
-### Using Python directly:
+### Method 1: Using FastAPI (Recommended - Multi-Exchange Support)
+
+Start the API server:
 
 ```bash
-python3 vh_float3.py
+python api_main.py
 ```
 
-### Using Docker:
+Or with uvicorn:
+
+```bash
+uvicorn api_main:app --host 0.0.0.0 --port 8000
+```
+
+Then control via API:
+
+```bash
+# Start ByBit trading
+curl -X POST http://localhost:8000/bybit/start
+
+# Check status
+curl http://localhost:8000/bybit/status
+
+# Get balance
+curl http://localhost:8000/bybit/balance
+
+# Stop trading
+curl -X POST http://localhost:8000/bybit/stop
+```
+
+Access web interface:
+- **API Docs (Swagger)**: http://localhost:8000/docs
+- **Alternative Docs (ReDoc)**: http://localhost:8000/redoc
+
+See [API_STRUCTURE.md](API_STRUCTURE.md) for complete API documentation.
+
+### Method 2: Using Python directly (ByBit only):
+
+```bash
+python vh_float.py
+```
+
+### Method 3: Using Docker:
 
 Build and run the container in detached mode:
 
@@ -77,6 +121,7 @@ docker compose down
 - Console output shows real-time trading activity
 - `trading.log` file contains detailed trading history (automatically rotated at 10MB, keeps 5 backups)
 - Telegram notifications (if configured) provide trade alerts
+- **FastAPI endpoints** provide programmatic access to all trading data and controls
 
 --------------
 

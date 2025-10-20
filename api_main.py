@@ -1,24 +1,51 @@
 import asyncio
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
+from typing import Dict, Optional, List
+from fastapi import FastAPI, HTTPException, Path
 from fastapi.responses import JSONResponse
 import uvicorn
 
-# Import the Trader class from vh_float
-from vh_float import Trader as ByBitSpotTrader, API_KEY, SECRET_KEY
+# Import the Trader class from vh_float (ByBit)
+from vh_float import Trader as ByBitSpotTrader, API_KEY as BYBIT_API_KEY, SECRET_KEY as BYBIT_SECRET_KEY
 
-# Global variables
-trader_instance = None
-trader_task = None
+# TODO: Import Binance trader when module is ready
+# from binance_trader import Trader as BinanceSpotTrader, API_KEY as BINANCE_API_KEY, SECRET_KEY as BINANCE_SECRET_KEY
+
+# TODO: Import Crypto.com trader when module is ready
+# from cryptocom_trader import Trader as CryptocomSpotTrader, API_KEY as CRYPTOCOM_API_KEY, SECRET_KEY as CRYPTOCOM_SECRET_KEY
+
+# Global variables for managing multiple exchange traders
+from typing import Any
+traders: Dict[str, Dict[str, Any]] = {
+    "bybit": {
+        "instance": None,
+        "task": None,
+        "enabled": True,
+        "name": "ByBit Spot"
+    },
+    "binance": {
+        "instance": None,
+        "task": None,
+        "enabled": False,  # Will be enabled when Binance module is added
+        "name": "Binance Spot"
+    },
+    "cryptocom": {
+        "instance": None,
+        "task": None,
+        "enabled": False,  # Will be enabled when Crypto.com module is added
+        "name": "Crypto.com Spot"
+    }
+}
+
 main_loop = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Manage the lifecycle of the trading bot"""
-    global trader_instance, trader_task, main_loop
+    """Manage the lifecycle of all trading bots"""
+    global traders, main_loop
     
-    print("Starting FastAPI application...")
+    print("Starting Multi-Exchange Volatility Harvesting API...")
     
     # Initialize event loop
     main_loop = asyncio.get_running_loop()
@@ -26,50 +53,99 @@ async def lifespan(app: FastAPI):
     yield
     
     # Cleanup on shutdown
-    print("Shutting down FastAPI application...")
-    if trader_task and not trader_task.done():
-        trader_task.cancel()
-        try:
-            await trader_task
-        except asyncio.CancelledError:
-            print("Trading task cancelled successfully")
+    print("Shutting down all trading bots...")
+    for exchange_name, trader_data in traders.items():
+        if trader_data["task"] and not trader_data["task"].done():
+            print(f"Stopping {exchange_name} trader...")
+            trader_data["task"].cancel()
+            try:
+                await trader_data["task"]
+            except asyncio.CancelledError:
+                print(f"{exchange_name} trading task cancelled successfully")
 
 
 app = FastAPI(
-    title="Volatility Harvesting Trading Bot",
-    description="API for managing cryptocurrency volatility harvesting bot",
-    version="1.0.0",
+    title="Multi-Exchange Volatility Harvesting Bot",
+    description="API for managing cryptocurrency volatility harvesting across multiple exchanges (ByBit, Binance, Crypto.com)",
+    version="2.0.0",
     lifespan=lifespan
 )
 
 
+# ==================== ROOT ENDPOINTS ====================
+
 @app.get("/")
 async def root():
-    """Root endpoint"""
+    """Root endpoint with API overview"""
     return {
-        "message": "Volatility Harvesting Trading Bot API",
-        "status": "running" if trader_task and not trader_task.done() else "stopped",
+        "message": "Multi-Exchange Volatility Harvesting Trading Bot API",
+        "version": "2.0.0",
+        "exchanges": {
+            name: {
+                "enabled": data["enabled"],
+                "status": "running" if data["task"] and not data["task"].done() else "stopped",
+                "name": data["name"]
+            }
+            for name, data in traders.items()
+        },
         "endpoints": {
-            "start": "/start - Start trading bot",
-            "stop": "/stop - Stop trading bot",
-            "status": "/status - Get bot status",
-            "balance": "/balance - Get account balance",
-            "stats": "/stats - Get trading statistics"
+            "exchanges": "/exchanges - List all available exchanges",
+            "bybit": {
+                "start": "/bybit/start - Start ByBit trading bot",
+                "stop": "/bybit/stop - Stop ByBit trading bot",
+                "status": "/bybit/status - Get ByBit bot status",
+                "balance": "/bybit/balance - Get ByBit account balance",
+                "stats": "/bybit/stats - Get ByBit trading statistics"
+            },
+            "binance": {
+                "info": "/binance/* - Binance endpoints (coming soon)"
+            },
+            "cryptocom": {
+                "info": "/cryptocom/* - Crypto.com endpoints (coming soon)"
+            }
         }
     }
 
 
-@app.post("/start")
-async def start_trading():
-    """Start the trading bot"""
-    global trader_instance, trader_task, main_loop
+@app.get("/exchanges")
+async def list_exchanges():
+    """List all available exchanges and their status"""
+    return {
+        "exchanges": [
+            {
+                "id": name,
+                "name": data["name"],
+                "enabled": data["enabled"],
+                "running": data["task"] is not None and not data["task"].done(),
+                "has_instance": data["instance"] is not None
+            }
+            for name, data in traders.items()
+        ]
+    }
+
+
+
+
+# ==================== BYBIT ENDPOINTS ====================
+
+@app.post("/bybit/start")
+async def start_bybit_trading():
+    """Start the ByBit trading bot"""
+    global traders, main_loop
     
-    if trader_task and not trader_task.done():
-        raise HTTPException(status_code=400, detail="Trading bot is already running")
+    if not traders["bybit"]["enabled"]:
+        raise HTTPException(status_code=400, detail="ByBit module is not enabled")
+    
+    if traders["bybit"]["task"] and not traders["bybit"]["task"].done():
+        raise HTTPException(status_code=400, detail="ByBit trading bot is already running")
+    
+    if main_loop is None:
+        raise HTTPException(status_code=500, detail="Event loop not initialized")
     
     try:
-        # Create trader instance
-        trader_instance = ByBitSpotTrader(loop=main_loop, key=API_KEY, secret=SECRET_KEY)
+        # Create ByBit trader instance
+        trader_instance = ByBitSpotTrader(loop=main_loop, key=BYBIT_API_KEY, secret=BYBIT_SECRET_KEY)
+        traders["bybit"]["instance"] = trader_instance
         
         # Initialize trader data
         await trader_instance.init_data()
@@ -82,27 +158,30 @@ async def start_trading():
         asyncio.create_task(trader_instance.save_history_loop())
         
         # Start main trading loop
-        trader_task = asyncio.create_task(trader_instance.trade_loop())
+        traders["bybit"]["task"] = asyncio.create_task(trader_instance.trade_loop())
         
         return JSONResponse(
             status_code=200,
             content={
-                "message": "Trading bot started successfully",
+                "exchange": "bybit",
+                "message": "ByBit trading bot started successfully",
                 "symbol": trader_instance.symbol,
                 "status": "running"
             }
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to start trading bot: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to start ByBit trading bot: {str(e)}")
 
 
-@app.post("/stop")
-async def stop_trading():
-    """Stop the trading bot"""
-    global trader_task
+@app.post("/bybit/stop")
+async def stop_bybit_trading():
+    """Stop the ByBit trading bot"""
+    global traders
+    
+    trader_task = traders["bybit"]["task"]
     
     if not trader_task or trader_task.done():
-        raise HTTPException(status_code=400, detail="Trading bot is not running")
+        raise HTTPException(status_code=400, detail="ByBit trading bot is not running")
     
     try:
         trader_task.cancel()
@@ -113,26 +192,31 @@ async def stop_trading():
     return JSONResponse(
         status_code=200,
         content={
-            "message": "Trading bot stopped successfully",
+            "exchange": "bybit",
+            "message": "ByBit trading bot stopped successfully",
             "status": "stopped"
         }
     )
 
 
-@app.get("/status")
-async def get_status():
-    """Get current trading bot status"""
-    global trader_instance, trader_task
+@app.get("/bybit/status")
+async def get_bybit_status():
+    """Get current ByBit trading bot status"""
+    global traders
+    
+    trader_instance = traders["bybit"]["instance"]
     
     if not trader_instance:
         return {
+            "exchange": "bybit",
             "status": "not_initialized",
-            "message": "Trading bot has not been started yet"
+            "message": "ByBit trading bot has not been started yet"
         }
     
-    is_running = trader_task and not trader_task.done()
+    is_running = traders["bybit"]["task"] and not traders["bybit"]["task"].done()
     
     status_info = {
+        "exchange": "bybit",
         "status": "running" if is_running else "stopped",
         "symbol": trader_instance.symbol,
         "last_price": trader_instance.last_price,
@@ -148,17 +232,20 @@ async def get_status():
     return status_info
 
 
-@app.get("/balance")
-async def get_balance():
-    """Get current account balance"""
-    global trader_instance
+@app.get("/bybit/balance")
+async def get_bybit_balance():
+    """Get current ByBit account balance"""
+    global traders
+    
+    trader_instance = traders["bybit"]["instance"]
     
     if not trader_instance:
-        raise HTTPException(status_code=400, detail="Trading bot not initialized")
+        raise HTTPException(status_code=400, detail="ByBit trading bot not initialized")
     
     await trader_instance.get_account_balance()
     
     return {
+        "exchange": "bybit",
         "native_balance": {
             trader_instance.pair[0]: trader_instance.ta.native_balance[0],
             trader_instance.pair[1]: trader_instance.ta.native_balance[1]
@@ -169,15 +256,18 @@ async def get_balance():
     }
 
 
-@app.get("/stats")
-async def get_stats():
-    """Get trading statistics"""
-    global trader_instance
+@app.get("/bybit/stats")
+async def get_bybit_stats():
+    """Get ByBit trading statistics"""
+    global traders
+    
+    trader_instance = traders["bybit"]["instance"]
     
     if not trader_instance:
-        raise HTTPException(status_code=400, detail="Trading bot not initialized")
+        raise HTTPException(status_code=400, detail="ByBit trading bot not initialized")
     
     return {
+        "exchange": "bybit",
         "symbol": trader_instance.symbol,
         "last_price": trader_instance.last_price,
         "traded_price": trader_instance.ta.traded_price,
@@ -208,6 +298,52 @@ async def get_stats():
         "ma_fast": trader_instance.ta.ma_fast_m
     }
 
+
+# ==================== BINANCE ENDPOINTS (PLACEHOLDER) ====================
+
+@app.get("/binance/info")
+async def binance_info():
+    """Binance module information"""
+    return {
+        "exchange": "binance",
+        "status": "not_implemented",
+        "message": "Binance trading module will be added soon",
+        "enabled": traders["binance"]["enabled"]
+    }
+
+
+@app.post("/binance/start")
+async def start_binance_trading():
+    """Start Binance trading bot (not yet implemented)"""
+    raise HTTPException(
+        status_code=501,
+        detail="Binance trading module is not yet implemented. Coming soon!"
+    )
+
+
+# ==================== CRYPTO.COM ENDPOINTS (PLACEHOLDER) ====================
+
+@app.get("/cryptocom/info")
+async def cryptocom_info():
+    """Crypto.com module information"""
+    return {
+        "exchange": "cryptocom",
+        "status": "not_implemented",
+        "message": "Crypto.com trading module will be added soon",
+        "enabled": traders["cryptocom"]["enabled"]
+    }
+
+
+@app.post("/cryptocom/start")
+async def start_cryptocom_trading():
+    """Start Crypto.com trading bot (not yet implemented)"""
+    raise HTTPException(
+        status_code=501,
+        detail="Crypto.com trading module is not yet implemented. Coming soon!"
+    )
+
+
+# ==================== MAIN ====================
 
 if __name__ == "__main__":
     # Run the FastAPI application with uvicorn
