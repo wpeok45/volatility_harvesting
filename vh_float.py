@@ -1,7 +1,6 @@
 import asyncio
 import sys
 import os
-import aiohttp
 import socket
 import array as arr
 import json
@@ -17,6 +16,7 @@ import statistics
 import dotenv
 from pathlib import Path
 from collections import deque
+import aiohttp
 
 dotenv.load_dotenv(override=True)
 
