@@ -1,6 +1,9 @@
 import asyncio
 from contextlib import asynccontextmanager
 from typing import Dict, Optional, List
+import json
+import os
+from pathlib import Path as FilePath
 from fastapi import FastAPI, HTTPException, Path
 from fastapi.responses import JSONResponse
 import uvicorn
@@ -14,30 +17,130 @@ from vh_float import Trader as ByBitSpotTrader, API_KEY as BYBIT_API_KEY, SECRET
 # TODO: Import Crypto.com trader when module is ready
 # from cryptocom_trader import Trader as CryptocomSpotTrader, API_KEY as CRYPTOCOM_API_KEY, SECRET_KEY as CRYPTOCOM_SECRET_KEY
 
+# Configuration file for API settings
+API_CONFIG_FILE = "api_config.json"
+
 # Global variables for managing multiple exchange traders
 from typing import Any
 traders: Dict[str, Dict[str, Any]] = {
     "bybit": {
         "instance": None,
-        "task": None,
+        "task": None,  # Main trade_loop task
+        "tasks": [],  # All background tasks (websockets, loops)
         "enabled": True,
-        "name": "ByBit Spot"
+        "name": "ByBit Spot",
+        "is_started": True  # Auto-start by default
     },
     "binance": {
         "instance": None,
         "task": None,
+        "tasks": [],
         "enabled": False,  # Will be enabled when Binance module is added
-        "name": "Binance Spot"
+        "name": "Binance Spot",
+        "is_started": False
     },
     "cryptocom": {
         "instance": None,
         "task": None,
+        "tasks": [],
         "enabled": False,  # Will be enabled when Crypto.com module is added
-        "name": "Crypto.com Spot"
+        "name": "Crypto.com Spot",
+        "is_started": False
     }
 }
 
 main_loop = None
+
+
+def save_api_config():
+    """Save API settings to JSON file"""
+    config = {}
+    for exchange, data in traders.items():
+        config[exchange] = {
+            "enabled": data["enabled"],
+            "is_started": data["is_started"],
+            "name": data["name"]
+        }
+    
+    try:
+        with open(API_CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=2)
+        print(f"API configuration saved to {API_CONFIG_FILE}")
+    except Exception as e:
+        print(f"Error saving API configuration: {e}")
+
+
+def load_api_config():
+    """Load API settings from JSON file"""
+    if not os.path.exists(API_CONFIG_FILE):
+        print(f"No configuration file found at {API_CONFIG_FILE}, using defaults")
+        return
+    
+    try:
+        with open(API_CONFIG_FILE, 'r') as f:
+            config = json.load(f)
+        
+        for exchange, settings in config.items():
+            if exchange in traders:
+                traders[exchange]["enabled"] = settings.get("enabled", traders[exchange]["enabled"])
+                traders[exchange]["is_started"] = settings.get("is_started", traders[exchange]["is_started"])
+                traders[exchange]["name"] = settings.get("name", traders[exchange]["name"])
+        
+        print(f"API configuration loaded from {API_CONFIG_FILE}")
+    except Exception as e:
+        print(f"Error loading API configuration: {e}")
+
+
+async def start_bybit_internal():
+    """Internal function to start ByBit bot (used for auto-start)"""
+    global traders, main_loop
+    
+    if not traders["bybit"]["enabled"]:
+        print("ByBit module is not enabled, skipping auto-start")
+        return False
+    
+    if traders["bybit"]["task"] and not traders["bybit"]["task"].done():
+        print("ByBit trading bot is already running")
+        return False
+    
+    if main_loop is None:
+        print("Event loop not initialized")
+        return False
+    
+    try:
+        # Create ByBit trader instance
+        trader_instance = ByBitSpotTrader(loop=main_loop, key=BYBIT_API_KEY, secret=BYBIT_SECRET_KEY)
+        traders["bybit"]["instance"] = trader_instance
+        
+        # Initialize trader data
+        await trader_instance.init_data()
+        
+        # Clear old tasks list
+        traders["bybit"]["tasks"] = []
+        
+        # Start websocket connections and trading tasks - track all tasks
+        task1 = asyncio.create_task(trader_instance.ws_ticker())
+        traders["bybit"]["tasks"].append(task1)
+        
+        await asyncio.sleep(1.0)
+        
+        task2 = asyncio.create_task(trader_instance.ws_user_data())
+        traders["bybit"]["tasks"].append(task2)
+        
+        task3 = asyncio.create_task(trader_instance.account_balance_loop())
+        traders["bybit"]["tasks"].append(task3)
+        
+        task4 = asyncio.create_task(trader_instance.save_history_loop())
+        traders["bybit"]["tasks"].append(task4)
+        
+        # Start main trading loop
+        traders["bybit"]["task"] = asyncio.create_task(trader_instance.trade_loop())
+        
+        print(f"ByBit trading bot auto-started successfully (symbol: {trader_instance.symbol})")
+        return True
+    except Exception as e:
+        print(f"Failed to auto-start ByBit trading bot: {str(e)}")
+        return False
 
 
 @asynccontextmanager
@@ -47,21 +150,51 @@ async def lifespan(app: FastAPI):
     
     print("Starting Multi-Exchange Volatility Harvesting API...")
     
+    # Load saved configuration
+    load_api_config()
+    
     # Initialize event loop
     main_loop = asyncio.get_running_loop()
     
+    # Auto-start exchanges that have is_started=True
+    await asyncio.sleep(0.5)  # Small delay for initialization
+    
+    for exchange, data in traders.items():
+        if data["enabled"] and data["is_started"]:
+            print(f"Auto-starting {exchange} trader...")
+            if exchange == "bybit":
+                await start_bybit_internal()
+            # TODO: Add auto-start for other exchanges when modules are ready
+    
     yield
+    
+    # Save configuration before shutdown
+    save_api_config()
     
     # Cleanup on shutdown
     print("Shutting down all trading bots...")
     for exchange_name, trader_data in traders.items():
         if trader_data["task"] and not trader_data["task"].done():
             print(f"Stopping {exchange_name} trader...")
+            
+            # Cancel main task
             trader_data["task"].cancel()
             try:
                 await trader_data["task"]
             except asyncio.CancelledError:
-                print(f"{exchange_name} trading task cancelled successfully")
+                print(f"{exchange_name} main task cancelled")
+            
+            # Cancel all background tasks (websockets, loops)
+            if trader_data["tasks"]:
+                print(f"Stopping {len(trader_data['tasks'])} background tasks for {exchange_name}...")
+                for task in trader_data["tasks"]:
+                    if not task.done():
+                        task.cancel()
+                        try:
+                            await task
+                        except asyncio.CancelledError:
+                            pass
+                print(f"{exchange_name} all tasks stopped successfully")
 
 
 app = FastAPI(
@@ -117,7 +250,8 @@ async def list_exchanges():
                 "name": data["name"],
                 "enabled": data["enabled"],
                 "running": data["task"] is not None and not data["task"].done(),
-                "has_instance": data["instance"] is not None
+                "has_instance": data["instance"] is not None,
+                "is_started": data["is_started"]
             }
             for name, data in traders.items()
         ]
@@ -150,15 +284,30 @@ async def start_bybit_trading():
         # Initialize trader data
         await trader_instance.init_data()
         
-        # Start websocket connections and trading tasks
-        asyncio.create_task(trader_instance.ws_ticker())
+        # Clear old tasks list
+        traders["bybit"]["tasks"] = []
+        
+        # Start websocket connections and trading tasks - track all tasks
+        task1 = asyncio.create_task(trader_instance.ws_ticker())
+        traders["bybit"]["tasks"].append(task1)
+        
         await asyncio.sleep(1.0)
-        asyncio.create_task(trader_instance.ws_user_data())
-        asyncio.create_task(trader_instance.account_balance_loop())
-        asyncio.create_task(trader_instance.save_history_loop())
+        
+        task2 = asyncio.create_task(trader_instance.ws_user_data())
+        traders["bybit"]["tasks"].append(task2)
+        
+        task3 = asyncio.create_task(trader_instance.account_balance_loop())
+        traders["bybit"]["tasks"].append(task3)
+        
+        task4 = asyncio.create_task(trader_instance.save_history_loop())
+        traders["bybit"]["tasks"].append(task4)
         
         # Start main trading loop
         traders["bybit"]["task"] = asyncio.create_task(trader_instance.trade_loop())
+        
+        # Update is_started flag and save config
+        traders["bybit"]["is_started"] = True
+        save_api_config()
         
         return JSONResponse(
             status_code=200,
@@ -166,7 +315,8 @@ async def start_bybit_trading():
                 "exchange": "bybit",
                 "message": "ByBit trading bot started successfully",
                 "symbol": trader_instance.symbol,
-                "status": "running"
+                "status": "running",
+                "is_started": True
             }
         )
     except Exception as e:
@@ -184,17 +334,36 @@ async def stop_bybit_trading():
         raise HTTPException(status_code=400, detail="ByBit trading bot is not running")
     
     try:
+        # Cancel main trading loop
         trader_task.cancel()
         await trader_task
     except asyncio.CancelledError:
         pass
+    
+    # Cancel all background tasks (websockets, balance loop, save history)
+    if traders["bybit"]["tasks"]:
+        print(f"Stopping {len(traders['bybit']['tasks'])} background tasks...")
+        for task in traders["bybit"]["tasks"]:
+            if not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+        traders["bybit"]["tasks"] = []
+        print("All ByBit background tasks stopped")
+    
+    # Update is_started flag and save config
+    traders["bybit"]["is_started"] = False
+    save_api_config()
     
     return JSONResponse(
         status_code=200,
         content={
             "exchange": "bybit",
             "message": "ByBit trading bot stopped successfully",
-            "status": "stopped"
+            "status": "stopped",
+            "is_started": False
         }
     )
 
@@ -210,6 +379,7 @@ async def get_bybit_status():
         return {
             "exchange": "bybit",
             "status": "not_initialized",
+            "is_started": traders["bybit"]["is_started"],
             "message": "ByBit trading bot has not been started yet"
         }
     
@@ -218,6 +388,7 @@ async def get_bybit_status():
     status_info = {
         "exchange": "bybit",
         "status": "running" if is_running else "stopped",
+        "is_started": traders["bybit"]["is_started"],
         "symbol": trader_instance.symbol,
         "last_price": trader_instance.last_price,
         "portfolio_ratio": round(trader_instance.ta.portfolio_ratio * 100, 2),
