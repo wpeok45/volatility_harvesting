@@ -1,0 +1,23 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [main, dev]
+  # Allows you to run this workflow manually from the Actions tab on GitHub.
+  #pull_request:
+  #  branches: [dev]
+  workflow_call:
+  workflow_dispatch:
+  
+# Allow this job to clone the repo and create a page deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  
+jobs:
+  testing:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
