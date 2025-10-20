@@ -16,6 +16,9 @@ wheels/
 # Environment variables
 .env
 
-# cache files
+# production files
 *.json
 *.dat
+*.log
+*.log.*
+!*.log.*[^0-9]*
