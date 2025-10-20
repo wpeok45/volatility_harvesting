@@ -288,24 +288,45 @@ async def get_bybit_status(current_user: User = Depends(get_current_user)):
             "exchange": "bybit",
             "status": "not_initialized",
             "is_started": traders["bybit"]["is_started"],
+            "symbol": None,
+            "ratio": None,
+            "range": None,
+            "ma_length": None,
+            "rebalance_top": None,
+            "rebalance_bottom": None,
             "message": "ByBit trading bot has not been started yet",
         }
 
     is_running = traders["bybit"]["task"] and not traders["bybit"]["task"].done()
 
+    # Get trading parameters from TradeAnalyse instance
+    ta = trader_instance.ta if hasattr(trader_instance, 'ta') else None
+    
+    if not ta:
+        return {
+            "exchange": "bybit",
+            "status": "initializing",
+            "is_started": traders["bybit"]["is_started"],
+            "symbol": trader_instance.symbol if hasattr(trader_instance, 'symbol') else None,
+            "ratio": None,
+            "range": None,
+            "ma_length": None,
+            "rebalance_top": None,
+            "rebalance_bottom": None,
+            "message": "Bot is initializing, trading data not yet available",
+        }
+    
     status_info = {
         "exchange": "bybit",
         "status": "running" if is_running else "stopped",
         "is_started": traders["bybit"]["is_started"],
         "symbol": trader_instance.symbol,
-        "last_price": trader_instance.last_price,
-        "portfolio_ratio": round(trader_instance.ta.portfolio_ratio * 100, 2),
-        "real_ratio": trader_instance.ta.real_ratio,
-        "ATH": trader_instance.ta.ATH,
-        "work_range": trader_instance.ta.work_range,
-        "local_range": trader_instance.ta.local_range,
-        "ma_trend": trader_instance.ta.ma_trend,
-        "ma_fast": trader_instance.ta.ma_fast_m,
+        "ratio": round(ta.portfolio_ratio, 4) if hasattr(ta, 'portfolio_ratio') else None,
+        "range": round(ta.work_range, 2) if hasattr(ta, 'work_range') else None,
+        "ma_length": int(ta.ma_length) if hasattr(ta, 'ma_length') else None,  # Note: typo in original code
+        "rebalance_top": ta.rebalance_top if hasattr(ta, 'rebalance_top') else None,
+        "rebalance_bottom": ta.rebalance_bottom if hasattr(ta, 'rebalance_bottom') else None,
+        "message": f"Bot is {'actively trading' if is_running else 'stopped'}",
     }
 
     return status_info

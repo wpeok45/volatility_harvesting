@@ -573,13 +573,13 @@ class TradeAnalyse:
         self.buy_price_mean = 0.0
         self.local_range = 1000.0
         self.local_range_win = deque(maxlen=AMPLITUDE_TIME_FRAME)
-        self.ma_lenght = MA_LENGTH
-        self.gap = self.ma_lenght / 4.8
+        self.ma_length = MA_LENGTH
+        self.gap = self.ma_length / 4.8
         self.ma_fast = 0.0
         self.ma_fast_m = 0.0
         self.ma_trend = 0.0
         self.ma_trend_prev = 10000000.0
-        self.ma_trend_win = deque(maxlen=int(self.ma_lenght))
+        self.ma_trend_win = deque(maxlen=int(self.ma_length))
         self.trend_crossover = Crossover()
         self.trend_crossunder = Crossunder()
         self.rebalance_top = REBALANCE_TOP
@@ -814,7 +814,7 @@ class TradeAnalyse:
             self.local_range_win.append(price)
             self.ma_trend = round(self.sma(self.ma_trend_win, price), 2) - self.gap
             self.ma_fast_m = round(
-                self.ema(int(self.ma_lenght), self.ma_fast_m, price), 2
+                self.ema(int(self.ma_length), self.ma_fast_m, price), 2
             )
             return
 
@@ -833,7 +833,7 @@ class TradeAnalyse:
                 self.ma_trend_prev = self.ma_trend
                 self.ma_trend = round(self.sma(self.ma_trend_win, price), 2) - self.gap
                 self.ma_fast_m = round(
-                    self.ema(int(self.ma_lenght), self.ma_fast_m, price), 2
+                    self.ema(int(self.ma_length), self.ma_fast_m, price), 2
                 )
 
             if self.pair_balance and self.traded_price != 0.0 and self.ATH != 999000.0:
