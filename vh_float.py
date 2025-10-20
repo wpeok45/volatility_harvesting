@@ -1341,7 +1341,7 @@ class Trader:
                     self.save_states()
 
                     # don't SELL while trend going up
-                    if trend > 0.0:  # or self.ta.trend :
+                    if trend > -1.0:
                         continue
 
                     ### To do: add option to sell all at min ratio
