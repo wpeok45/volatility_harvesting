@@ -17,6 +17,7 @@ prompt.txt
 .env
 
 # production files
+data/
 *.json
 *.dat
 *.log

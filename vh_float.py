@@ -64,9 +64,9 @@ async def Fire_alert(bot_message: str, bot_token: str, bot_chatID: str):
         print(f"ERROR: Fire_alert, {repr(traceback.extract_tb(ex.__traceback__))}")
 
 
-def log(data: str):
+def log(data: str, log_file: str = "trading.log"):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open("trading.log", mode="a", encoding="UTF-8") as f:
+    with open(log_file, mode="a", encoding="UTF-8") as f:
         print(f"[{timestamp}] {data}", file=f)
 
 
@@ -552,7 +552,7 @@ class DynamicOrderScale:
 
 
 class TradeAnalyse:
-    def __init__(self, pair) -> None:
+    def __init__(self, pair, log_file: str = "trading.log") -> None:
         self.prices = deque(maxlen=60 * 60 * 24)
         self.diffs = deque(maxlen=3)
         self.diffs_pool = deque(maxlen=int(60 * 15))
@@ -592,6 +592,7 @@ class TradeAnalyse:
         self.work_range = self.ATH / 100.0 * RANGE
         self.ratio_per_point = 1.0 / self.work_range
         self.min_max_ratio = [MIN_RATIO, MAX_RATIO]
+        self.log_file = log_file
         self.real_ratio = 0.0
         self.portfolio_ratio = self.min_max_ratio[0]
         self.percent_diff = 0.0
@@ -823,7 +824,7 @@ class TradeAnalyse:
             )
 
             if change:
-                rotate_log_file("trading.log", max_files=5, max_size_mb=10.0)
+                rotate_log_file(self.log_file, max_files=5, max_size_mb=10.0)
                 self.local_range_win.append(price)
                 self.local_range = int(
                     max(self.local_range_win) - min(self.local_range_win)
@@ -852,11 +853,11 @@ class TradeAnalyse:
             )
 
             print(data)
-            log(data)
+            log(data, self.log_file)
 
 
 class Trader:
-    def __init__(self, loop: asyncio.AbstractEventLoop, key, secret) -> None:
+    def __init__(self, loop: asyncio.AbstractEventLoop, key, secret, data_dir: str = "data/") -> None:
         self.loop = loop  # asyncio.get_running_loop()
         self.key = key
         self.secret = secret
@@ -864,9 +865,18 @@ class Trader:
         self.pair = ["BTC", STABLE_PAIR]
         self.symbol = "".join(self.pair)
         self.last_price = 0.0
-        self.ta = TradeAnalyse(self.pair)
         self.minOrderQty = 0.000198
         self.minOrderAmt = 10.0
+        self.data_dir = Path(data_dir)
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        
+        # File paths for data storage
+        self.log_file = str(self.data_dir / "trading.log")
+        self.data_file = str(self.data_dir / "data_s1.dat")
+        self.state_file = str(self.data_dir / f"{self.symbol}.json")
+        
+        # Initialize TradeAnalyse with log file
+        self.ta = TradeAnalyse(self.pair, log_file=self.log_file)
 
     async def init_data(self):
         self.client = Client(
@@ -942,7 +952,7 @@ class Trader:
         header = arr.array("L", [])
         data_s1 = arr.array("d", [])
         try:
-            with open("data_s1.dat", "rb") as f:
+            with open(self.data_file, "rb") as f:
                 header.fromfile(f, 1)
                 data_s1.fromfile(f, header[0])
 
@@ -1065,7 +1075,7 @@ class Trader:
                     )
 
                     print(out)
-                    log(out)
+                    log(out, self.log_file)
                 case _:
                     pass
 
@@ -1158,7 +1168,7 @@ class Trader:
         data["buy_counter"] = self.ta.order_scale.buy_counter
         data["sell_counter"] = self.ta.order_scale.sell_counter
 
-        with open(f"{self.symbol}.json", "w") as f:
+        with open(self.state_file, "w") as f:
             json.dump(data, f, indent=4)
 
     def init_new_states(self):
@@ -1181,7 +1191,7 @@ class Trader:
 
     def load_states(self):
         try:
-            with open(f"{self.symbol}.json", "r") as f:
+            with open(self.state_file, "r") as f:
                 data = json.load(f)
                 self.ta.traded_price = data["traded_price"]
                 self.ta.buy_price_mean = data["buy_price_mean"]
@@ -1190,7 +1200,7 @@ class Trader:
                 self.ta.trend_crossunder.cross = data["trend_crossunder"]
                 self.ta.order_scale._buy_counter = data["buy_counter"]
                 self.ta.order_scale._sell_counter = data["sell_counter"]
-                print(f"Load states.json: {data}")
+                print(f"Load {self.state_file}: {data}")
 
         except Exception as ex:
             self.init_new_states()
@@ -1287,7 +1297,7 @@ class Trader:
         while True:
             data_s1 = arr.array("d", self.ta.prices)
             header: arr.array = arr.array("L", [len(data_s1)])
-            with open("data_s1.dat", "wb") as f:
+            with open(self.data_file, "wb") as f:
                 header.tofile(f)
                 data_s1.tofile(f)
 

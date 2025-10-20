@@ -20,6 +20,18 @@ from vh_float import Trader as ByBitSpotTrader, API_KEY as BYBIT_API_KEY, SECRET
 # Configuration file for API settings
 API_CONFIG_FILE = "api_config.json"
 
+# Data directories for each exchange
+DATA_DIR = FilePath("data")
+EXCHANGE_DATA_DIRS = {
+    "bybit": DATA_DIR / "bybit",
+    "binance": DATA_DIR / "binance",
+    "cryptocom": DATA_DIR / "cryptocom"
+}
+
+# Ensure data directories exist
+for exchange_dir in EXCHANGE_DATA_DIRS.values():
+    exchange_dir.mkdir(parents=True, exist_ok=True)
+
 # Global variables for managing multiple exchange traders
 from typing import Any
 traders: Dict[str, Dict[str, Any]] = {
@@ -108,8 +120,13 @@ async def start_bybit_internal():
         return False
     
     try:
-        # Create ByBit trader instance
-        trader_instance = ByBitSpotTrader(loop=main_loop, key=BYBIT_API_KEY, secret=BYBIT_SECRET_KEY)
+        # Create ByBit trader instance with data directory
+        trader_instance = ByBitSpotTrader(
+            loop=main_loop, 
+            key=BYBIT_API_KEY, 
+            secret=BYBIT_SECRET_KEY,
+            data_dir=str(EXCHANGE_DATA_DIRS["bybit"])
+        )
         traders["bybit"]["instance"] = trader_instance
         
         # Initialize trader data
@@ -277,8 +294,13 @@ async def start_bybit_trading():
         raise HTTPException(status_code=500, detail="Event loop not initialized")
     
     try:
-        # Create ByBit trader instance
-        trader_instance = ByBitSpotTrader(loop=main_loop, key=BYBIT_API_KEY, secret=BYBIT_SECRET_KEY)
+        # Create ByBit trader instance with data directory
+        trader_instance = ByBitSpotTrader(
+            loop=main_loop, 
+            key=BYBIT_API_KEY, 
+            secret=BYBIT_SECRET_KEY,
+            data_dir=str(EXCHANGE_DATA_DIRS["bybit"])
+        )
         traders["bybit"]["instance"] = trader_instance
         
         # Initialize trader data
