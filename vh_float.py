@@ -857,7 +857,7 @@ class TradeAnalyse:
 
 
 class Trader:
-    def __init__(self, loop: asyncio.AbstractEventLoop, key, secret, data_dir: str = "data/") -> None:
+    def __init__(self, loop: asyncio.AbstractEventLoop, key, secret, data_dir: str = "data") -> None:
         self.loop = loop  # asyncio.get_running_loop()
         self.key = key
         self.secret = secret
