@@ -2,10 +2,11 @@
 ByBit exchange API routes
 """
 import asyncio
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import JSONResponse
 
 from .dependencies import traders, get_main_loop, EXCHANGE_DATA_DIRS
+from .auth import get_current_user, User
 from vh_float import Trader as ByBitSpotTrader, API_KEY as BYBIT_API_KEY, SECRET_KEY as BYBIT_SECRET_KEY
 
 router = APIRouter(prefix="/bybit", tags=["ByBit"])
@@ -70,8 +71,8 @@ async def start_bybit_internal():
 
 
 @router.post("/start")
-async def start_bybit_trading():
-    """Start the ByBit trading bot"""
+async def start_bybit_trading(current_user: User = Depends(get_current_user)):
+    """Start the ByBit trading bot (requires authentication)"""
     from .config import save_api_config
     
     main_loop = get_main_loop()
@@ -139,8 +140,8 @@ async def start_bybit_trading():
 
 
 @router.post("/stop")
-async def stop_bybit_trading():
-    """Stop the ByBit trading bot"""
+async def stop_bybit_trading(current_user: User = Depends(get_current_user)):
+    """Stop the ByBit trading bot (requires authentication)"""
     from .config import save_api_config
     
     trader_task = traders["bybit"]["task"]
@@ -184,8 +185,8 @@ async def stop_bybit_trading():
 
 
 @router.get("/status")
-async def get_bybit_status():
-    """Get current ByBit trading bot status"""
+async def get_bybit_status(current_user: User = Depends(get_current_user)):
+    """Get current ByBit trading bot status (requires authentication)"""
     trader_instance = traders["bybit"]["instance"]
     
     if not trader_instance:
@@ -217,8 +218,8 @@ async def get_bybit_status():
 
 
 @router.get("/balance")
-async def get_bybit_balance():
-    """Get current ByBit account balance"""
+async def get_bybit_balance(current_user: User = Depends(get_current_user)):
+    """Get current ByBit account balance (requires authentication)"""
     trader_instance = traders["bybit"]["instance"]
     
     if not trader_instance:
@@ -239,8 +240,8 @@ async def get_bybit_balance():
 
 
 @router.get("/stats")
-async def get_bybit_stats():
-    """Get ByBit trading statistics"""
+async def get_bybit_stats(current_user: User = Depends(get_current_user)):
+    """Get ByBit trading statistics (requires authentication)"""
     trader_instance = traders["bybit"]["instance"]
     
     if not trader_instance:

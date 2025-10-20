@@ -1,16 +1,17 @@
 """
 Binance exchange API routes (placeholder)
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 
 from .dependencies import traders
+from .auth import get_current_user, User
 
 router = APIRouter(prefix="/binance", tags=["Binance"])
 
 
 @router.get("/info")
-async def binance_info():
-    """Binance module information"""
+async def binance_info(current_user: User = Depends(get_current_user)):
+    """Binance module information (requires authentication)"""
     return {
         "exchange": "binance",
         "status": "not_implemented",
@@ -20,8 +21,8 @@ async def binance_info():
 
 
 @router.post("/start")
-async def start_binance_trading():
-    """Start Binance trading bot (not yet implemented)"""
+async def start_binance_trading(current_user: User = Depends(get_current_user)):
+    """Start Binance trading bot (not yet implemented, requires authentication)"""
     raise HTTPException(
         status_code=501,
         detail="Binance trading module is not yet implemented. Coming soon!"
@@ -29,8 +30,8 @@ async def start_binance_trading():
 
 
 @router.post("/stop")
-async def stop_binance_trading():
-    """Stop Binance trading bot (not yet implemented)"""
+async def stop_binance_trading(current_user: User = Depends(get_current_user)):
+    """Stop Binance trading bot (not yet implemented, requires authentication)"""
     raise HTTPException(
         status_code=501,
         detail="Binance trading module is not yet implemented. Coming soon!"
@@ -38,9 +39,10 @@ async def stop_binance_trading():
 
 
 @router.get("/status")
-async def get_binance_status():
-    """Get Binance bot status (not yet implemented)"""
+async def get_binance_status(current_user: User = Depends(get_current_user)):
+    """Get Binance bot status (not yet implemented, requires authentication)"""
     raise HTTPException(
         status_code=501,
         detail="Binance trading module is not yet implemented. Coming soon!"
     )
+

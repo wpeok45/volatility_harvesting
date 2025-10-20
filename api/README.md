@@ -2,6 +2,26 @@
 
 Modular API structure using FastAPI Router for each exchange.
 
+## ⚠️ Security Warning
+
+**CORS Configuration**: The API has **unrestricted CORS** enabled (`allow_origins=["*"]`). This means:
+- ✅ Any web application can access the API from any domain
+- ✅ Useful for development and testing
+- ⚠️ **NOT recommended for production** without proper authentication
+- ⚠️ Consider restricting `allow_origins` to specific domains in production
+- 🔒 **Always use authentication tokens** when exposing to the internet
+
+To restrict CORS in production, modify `api_main.py`:
+```python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://yourdomain.com"],  # Specific domains only
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],  # Limit methods
+    allow_headers=["*"],
+)
+```
+
 ## Structure
 
 ```

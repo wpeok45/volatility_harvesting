@@ -3,16 +3,31 @@ Multi-Exchange Volatility Harvesting Trading Bot API
 Main application file
 """
 import asyncio
+import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from datetime import timedelta
+from dotenv import load_dotenv
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordRequestForm
 import uvicorn
+
+# Load environment variables
+load_dotenv()
 
 # Import API modules
 from api import bybit_router, binance_router, cryptocom_router
 from api.dependencies import traders, set_main_loop
 from api.config import save_api_config, load_api_config
 from api.bybit import start_bybit_internal
+from api.auth import (
+    authenticate_user,
+    create_access_token,
+    get_current_user,
+    Token,
+    User,
+    ACCESS_TOKEN_EXPIRE_MINUTES
+)
 
 
 @asynccontextmanager
@@ -94,12 +109,38 @@ app.include_router(cryptocom_router)
 
 # ==================== ROOT ENDPOINTS ====================
 
+@app.post("/token", response_model=Token)
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """
+    OAuth2 token endpoint for authentication.
+    Use this to get an access token by providing username and password.
+    """
+    user = authenticate_user(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
 @app.get("/")
 async def root():
-    """Root endpoint with API overview"""
+    """Root endpoint with API overview (public, no authentication required)"""
     return {
         "message": "Multi-Exchange Volatility Harvesting Trading Bot API",
         "version": "2.0.0",
+        "authentication": {
+            "required": True,
+            "type": "OAuth2 Password Bearer",
+            "token_endpoint": "/token",
+            "docs": "Use /docs to test authentication interactively"
+        },
         "exchanges": {
             name: {
                 "enabled": data["enabled"],
@@ -109,26 +150,28 @@ async def root():
             for name, data in traders.items()
         },
         "endpoints": {
-            "exchanges": "/exchanges - List all available exchanges",
+            "token": "/token - Get access token (POST with username/password)",
+            "exchanges": "/exchanges - List all available exchanges (requires auth)",
             "bybit": {
-                "start": "/bybit/start - Start ByBit trading bot",
-                "stop": "/bybit/stop - Stop ByBit trading bot",
-                "status": "/bybit/status - Get ByBit bot status",
-                "balance": "/bybit/balance - Get ByBit account balance",
-                "stats": "/bybit/stats - Get ByBit trading statistics"
+                "start": "/bybit/start - Start ByBit trading bot (requires auth)",
+                "stop": "/bybit/stop - Stop ByBit trading bot (requires auth)",
+                "status": "/bybit/status - Get ByBit bot status (requires auth)",
+                "balance": "/bybit/balance - Get ByBit account balance (requires auth)",
+                "stats": "/bybit/stats - Get ByBit trading statistics (requires auth)"
             },
             "binance": {
-                "info": "/binance/* - Binance endpoints (coming soon)"
+                "info": "/binance/* - Binance endpoints (coming soon, requires auth)"
             },
             "cryptocom": {
-                "info": "/cryptocom/* - Crypto.com endpoints (coming soon)"
+                "info": "/cryptocom/* - Crypto.com endpoints (coming soon, requires auth)"
             }
         }
     }
 
 
 @app.get("/exchanges")
-async def list_exchanges():
+async def list_exchanges(current_user: User = Depends(get_current_user)):
+    """List all available exchanges and their status (requires authentication)"""
     """List all available exchanges and their status"""
     return {
         "exchanges": [
