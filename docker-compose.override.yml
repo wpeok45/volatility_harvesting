@@ -3,13 +3,13 @@ services:
     env_file:
       - .env
     #environment:
-       # nginx-proxy settings
+       ## nginx-proxy settings
        #VIRTUAL_HOST: api.${API_DOMAIN?Variable not set}
        #VIRTUAL_PORT: ${API_PORT?Variable not set}
        #LETSENCRYPT_HOST: api.${API_DOMAIN?Variable not set}
        #LETSENCRYPT_EMAIL: admin@${API_DOMAIN?Variable not set}
     labels:
-      # traefik proxy settings
+      ## traefik proxy settings
       - traefik.enable=true
       - traefik.http.services.${API_STACK_NAME?Variable not set}-frontend.loadbalancer.server.port=${API_PORT?Variable not set}
       - traefik.http.routers.${API_STACK_NAME?Variable not set}-frontend-http.rule=Host(`api.${API_DOMAIN?Variable not set}`)

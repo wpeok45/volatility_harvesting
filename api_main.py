@@ -87,8 +87,9 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Multi-Exchange Volatility Harvesting Bot",
     description="API for managing cryptocurrency volatility harvesting across multiple exchanges.",
-    version="1.0.3",
+    version="1.0.4",
     lifespan=lifespan,
+    swagger_ui_parameters={"docExpansion": "none"},
 )
 
 

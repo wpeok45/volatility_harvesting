@@ -24,3 +24,9 @@ data/
 *.log
 *.log.*
 !*.log.*[^0-9]*
+
+# Tests reports and coverage
+htmlcov/
+.coverage
+coverage.xml
+.cache

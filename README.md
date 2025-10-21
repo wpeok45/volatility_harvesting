@@ -42,16 +42,91 @@ See [api/README.md](api/README.md) for detailed API documentation.
 
 ## Installation
 
-Install required dependencies:
-
 ```bash
 pip install -r requirements.txt
 ```
 
-Or using Python 3 explicitly:
+## Testing
+
+The project includes comprehensive unit and integration tests **without running the real API server**.
+
+### Test Architecture
+
+Tests use mocking to isolate functionality:
+- **No real server startup** - FastAPI app created without lifespan
+- **Mock trader instances** - vh_float.Trader is mocked
+- **Mock exchange operations** - start/stop operations are mocked
+- **Isolated state** - Each test has clean trader state
+
+### Running Tests
 
 ```bash
-python3 -m pip install -r requirements.txt
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=api --cov-report=html
+
+# Run specific test types
+pytest tests/unit/           # Unit tests only
+pytest tests/integration/    # Integration tests only
+
+# Run specific test file
+pytest tests/unit/test_auth.py
+
+# Run tests matching pattern
+pytest -k "test_auth"
+
+# Run with verbose output
+pytest -v
+
+# Run without capturing output (for debugging)
+pytest -s
+```
+
+### Test Structure
+
+```
+tests/
+├── conftest.py              # Shared fixtures and mocks
+├── unit/                    # Unit tests
+│   ├── test_auth.py        # Authentication tests
+│   ├── test_config.py      # Configuration tests
+│   └── test_models.py      # Model validation tests
+└── integration/            # Integration tests
+    ├── test_api_bybit.py   # ByBit API endpoint tests (mocked)
+    └── test_api_main.py    # Main API endpoint tests
+```
+
+### Test Fixtures
+
+Available in `conftest.py`:
+- `test_client` - Synchronous FastAPI test client (without lifespan)
+- `async_client` - Asynchronous test client (without lifespan)
+- `auth_token` - Valid JWT token
+- `auth_headers` - Authorization headers with Bearer token
+- `mock_trader` - Mock trader instance with realistic data
+- `mock_start_bybit` - Mock start function (prevents real bot startup)
+- `mock_stop_bybit` - Mock stop function (prevents real operations)
+- `reset_traders` - Auto-reset trader state between tests (autouse)
+- `app_without_lifespan` - FastAPI app without lifespan events
+
+### Test Coverage
+
+- ✅ Authentication (OAuth2, JWT)
+- ✅ Model validation (Pydantic)
+- ✅ Config management (save/load)
+- ✅ API endpoints (start, stop, status, balance, stats)
+- ✅ Authorization (protected endpoints)
+- ✅ All tests run without starting real trading bots
+
+### Continuous Integration
+
+Tests are automatically run on every push and pull request via GitHub Actions.
+
+**Note:** If you encounter bcrypt errors during testing, make sure `bcrypt>=4.0.0` is installed:
+```bash
+pip install bcrypt>=4.0.0
 ```
 
 ## Configuration
