@@ -1,4 +1,5 @@
 # Volatility Harvesting (Floating Percent)
+![Python 3.11](https://img.shields.io/badge/python-3.11-blue)
 
 ![alt text](pnl.png)
 
