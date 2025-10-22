@@ -1,6 +1,6 @@
 # Volatility Harvesting (Floating Percent)
+![Tests](https://github.com/wpeok45/volatility_harvesting/actions/workflows/tests.yml/badge.svg?event=push&branch=main)
 ![Python 3.11](https://img.shields.io/badge/python-3.11-blue)
-
 ![alt text](pnl.png)
 
 A multi-exchange spot trading bot implementing volatility harvesting strategy with dynamic portfolio rebalancing.
