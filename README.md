@@ -1,6 +1,10 @@
 
-![Tests](https://github.com/wpeok45/volatility_harvesting/actions/workflows/tests.yml/badge.svg?event=push&branch=main)
-![Python 3.11](https://img.shields.io/badge/python-3.11-blue)
+<p>
+<a href="https://github.com/wpeok45/volatility_harvesting/actions?query=workflow:Test+event:push+branch:main" target="_blank">
+    <img src="https://github.com/wpeok45/volatility_harvesting/actions/workflows/tests.yml/badge.svg?event=push&branch=main" alt="Test">
+</a>
+</p>
+<!-- ![Python 3.11](https://img.shields.io/badge/python-3.11-blue) -->
 
 # Volatility Harvesting (Floating Percent)
 
