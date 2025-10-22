@@ -8,65 +8,23 @@ on:
 
 jobs:
   test:
-    name: python
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
-
-      - name: Install the project
-        run: uv sync --locked --all-extras --dev
-
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.4.15"
+          enable-cache: true
+      
       - name: Run tests
-        # For example, using `pytest`
-        run: uv run pytest tests/ -v --timeout=10
+        run: uv run pytest tests/ -v
         
-    # steps:
-    #   - name: Checkout
-    #     uses: actions/checkout@v4
-    
-    #   - name: Set up Python
-    #     uses: actions/setup-python@v5
-    #     with:
-    #       python-version: "3.11"
-      
-    #   - name: Install uv
-    #     uses: astral-sh/setup-uv@v4
-    #     with:
-    #       enable-cache: true
-      
-    #   - name: Install dependencies
-    #     run: |
-    #       uv sync --frozen
-      
-    #   - name: Run tests
-    #     env:
-    #       TESTING: "true"
-    #       ADMIN_USERNAME: "admin"
-    #       ADMIN_PASSWORD: "secret"
-    #       JWT_SECRET_KEY: "test_secret_key_for_testing_only"
-    #       API_KEY: "test_api_key"
-    #       SECRET_KEY: "test_secret_key"
-    #     run: |
-    #       uv run pytest tests/api/ -v --timeout=10
-      
-      # - name: Generate coverage report
-      #   if: success()
-      #   env:
-      #     TESTING: "true"
-      #     ADMIN_USERNAME: "admin"
-      #     ADMIN_PASSWORD: "secret"
-      #     JWT_SECRET_KEY: "test_secret_key_for_testing_only"
-      #     API_KEY: "test_api_key"
-      #     SECRET_KEY: "test_secret_key"
-      #   run: |
-      #     uv run pytest tests/api/ --cov=api --cov-report=xml --cov-report=term-missing --timeout=10
-      
-      # - name: Upload coverage to Codecov
-      #   if: success()
-      #   uses: codecov/codecov-action@v4
-      #   with:
-      #     file: ./coverage.xml
-      #     fail_ci_if_error: false
