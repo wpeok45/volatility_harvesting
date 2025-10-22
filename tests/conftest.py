@@ -1,6 +1,7 @@
 """
 Pytest configuration for volatility harvesting tests.
 """
+
 import os
 import sys
 from pathlib import Path

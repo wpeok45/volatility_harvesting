@@ -1,6 +1,7 @@
 """
 Pydantic models for API requests and responses
 """
+
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 

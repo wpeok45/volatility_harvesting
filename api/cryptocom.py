@@ -1,6 +1,7 @@
 """
 Crypto.com exchange API routes (placeholder)
 """
+
 from fastapi import APIRouter, HTTPException, Depends
 
 from .dependencies import traders

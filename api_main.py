@@ -2,6 +2,7 @@
 Multi-Exchange Volatility Harvesting Trading Bot API
 Main application file
 """
+
 import asyncio
 import uvicorn
 from contextlib import asynccontextmanager
@@ -24,6 +25,7 @@ from api.auth import (
 from api.models import Token, User, ExchangesResponse
 
 load_dotenv()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

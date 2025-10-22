@@ -1,6 +1,7 @@
 """
 ByBit exchange API routes
 """
+
 import asyncio
 from fastapi import APIRouter, HTTPException, Depends
 from .dependencies import traders, get_main_loop, EXCHANGE_DATA_DIRS
@@ -297,14 +298,16 @@ async def get_bybit_status(current_user: User = Depends(get_current_user)):
     is_running = traders["bybit"]["task"] and not traders["bybit"]["task"].done()
 
     # Get trading parameters from TradeAnalyse instance
-    ta = trader_instance.ta if hasattr(trader_instance, 'ta') else None
-    
+    ta = trader_instance.ta if hasattr(trader_instance, "ta") else None
+
     if not ta:
         return {
             "exchange": "bybit",
             "status": "initializing",
             "is_started": traders["bybit"]["is_started"],
-            "symbol": trader_instance.symbol if hasattr(trader_instance, 'symbol') else None,
+            "symbol": trader_instance.symbol
+            if hasattr(trader_instance, "symbol")
+            else None,
             "ratio": None,
             "range": None,
             "ma_length": None,
@@ -312,17 +315,23 @@ async def get_bybit_status(current_user: User = Depends(get_current_user)):
             "rebalance_bottom": None,
             "message": "Bot is initializing, trading data not yet available",
         }
-    
+
     status_info = {
         "exchange": "bybit",
         "status": "running" if is_running else "stopped",
         "is_started": traders["bybit"]["is_started"],
         "symbol": trader_instance.symbol,
-        "ratio": round(ta.portfolio_ratio, 4) if hasattr(ta, 'portfolio_ratio') else None,
-        "range": round(ta.working_range, 2) if hasattr(ta, 'working_range') else None,
-        "ma_length": int(ta.ma_length) if hasattr(ta, 'ma_length') else None,  # Note: typo in original code
-        "rebalance_top": ta.rebalance_top if hasattr(ta, 'rebalance_top') else None,
-        "rebalance_bottom": ta.rebalance_bottom if hasattr(ta, 'rebalance_bottom') else None,
+        "ratio": round(ta.portfolio_ratio, 4)
+        if hasattr(ta, "portfolio_ratio")
+        else None,
+        "range": round(ta.working_range, 2) if hasattr(ta, "working_range") else None,
+        "ma_length": int(ta.ma_length)
+        if hasattr(ta, "ma_length")
+        else None,  # Note: typo in original code
+        "rebalance_top": ta.rebalance_top if hasattr(ta, "rebalance_top") else None,
+        "rebalance_bottom": ta.rebalance_bottom
+        if hasattr(ta, "rebalance_bottom")
+        else None,
         "message": f"Bot is {'actively trading' if is_running else 'stopped'}",
     }
 

@@ -1,6 +1,7 @@
 """
 Simple pytest test for root endpoint.
 """
+
 from fastapi.testclient import TestClient
 from api_main import app
 
@@ -23,4 +24,3 @@ def test_exchanges_requires_auth():
     response = client.get("/exchanges")
     assert response.status_code == 401
     assert "detail" in response.json()
-

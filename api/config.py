@@ -1,6 +1,7 @@
 """
 Configuration management for API
 """
+
 import json
 import os
 from .dependencies import traders

@@ -1,6 +1,7 @@
 """
 Shared dependencies for API routers
 """
+
 import asyncio
 from typing import Dict, Any, Optional
 from pathlib import Path

@@ -2,6 +2,7 @@
 OAuth2 authentication module for API
 Uses Simple OAuth2 with Password and Bearer token
 """
+
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional

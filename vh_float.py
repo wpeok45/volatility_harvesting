@@ -191,7 +191,6 @@ class WSClient:
             await asyncio.sleep(20.0)
 
     async def start(self, subscribe: list, callback, need_auth=False):
-
         while 1:
             await self.initialize()
             print(f"INFO: ws start: {self.stream_url}")
@@ -843,9 +842,9 @@ class TradeAnalyse:
 
             data = (
                 f"{int(price)}, "
-                f"impuls {self.diffs_pool.maxlen/60}m: {self.impuls}|{self.impuls_harmonic} ({self.impuls_percent}%|{self.impuls_harmonic_percent}%), "
+                f"impuls {self.diffs_pool.maxlen / 60}m: {self.impuls}|{self.impuls_harmonic} ({self.impuls_percent}%|{self.impuls_harmonic_percent}%), "
                 f"spot cost: {round(self.buy_price_mean, 1)}, "
-                f"pnl: {round(self.native_balance[0]*price - self.native_balance[0]*self.buy_price_mean, 1)} {self.pair[1]}, "
+                f"pnl: {round(self.native_balance[0] * price - self.native_balance[0] * self.buy_price_mean, 1)} {self.pair[1]}, "
                 f"trend: {round(self.ma_trend - self.ma_trend_prev, 1)}, EMA:{round(self.ma_fast_m - self.ma_trend, 1)}, "
                 f"spread: {round(abs(self.price_diff), 2)} > local range: {self.local_range}, "
                 f"target ratio: {round(self.portfolio_ratio * 100.0, 2)}%, "
@@ -973,7 +972,6 @@ class Trader:
             print(f"{repr(traceback.extract_tb(ex.__traceback__))}")
 
     async def account_balance_loop(self):
-
         while True:
             await self.get_account_balance()
             await asyncio.sleep(22.0)
@@ -1046,7 +1044,6 @@ class Trader:
         if "topic" in msg:
             match msg["topic"]:
                 case "wallet":
-
                     if "data" not in msg:
                         return
 
@@ -1135,7 +1132,7 @@ class Trader:
                 self.save_states()
                 self.loop.create_task(
                     Fire_alert(
-                        bot_message=f"S: {self.ta.traded_price}, {round(qtty* price, 2)}, mean: {self.ta.buy_price_mean}",
+                        bot_message=f"S: {self.ta.traded_price}, {round(qtty * price, 2)}, mean: {self.ta.buy_price_mean}",
                         bot_token=self.ta.bot_token,
                         bot_chatID=self.ta.bot_chatID,
                     ),
@@ -1232,7 +1229,7 @@ class Trader:
                 else:
                     break
             except Exception as e:
-                print(f"ERROR: do_buy, {e.with_traceback(__tb = sys.exc_info()[2])}")
+                print(f"ERROR: do_buy, {e.with_traceback(__tb=sys.exc_info()[2])}")
                 await asyncio.sleep(1.1)
 
     async def do_sell(self, qtty):
@@ -1258,7 +1255,7 @@ class Trader:
                 else:
                     break
             except Exception as e:
-                print(f"ERROR: do_sell(), {e.with_traceback(__tb = sys.exc_info()[2])}")
+                print(f"ERROR: do_sell(), {e.with_traceback(__tb=sys.exc_info()[2])}")
                 await asyncio.sleep(1.1)
 
     async def buy_signal(self):
