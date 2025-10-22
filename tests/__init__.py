@@ -1,3 +1,1 @@
-"""
-Tests package for Volatility Harvesting Bot
-"""
+# Tests package

@@ -3,8 +3,6 @@ ByBit exchange API routes
 """
 import asyncio
 from fastapi import APIRouter, HTTPException, Depends
-from fastapi.responses import JSONResponse
-
 from .dependencies import traders, get_main_loop, EXCHANGE_DATA_DIRS
 from .auth import get_current_user
 from .models import (
@@ -12,7 +10,6 @@ from .models import (
     StartResponse,
     StopResponse,
     StatusResponse,
-    BalanceInfo,
     BalanceResponse,
     StatsResponse,
 )

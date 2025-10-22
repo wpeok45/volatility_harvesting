@@ -3,19 +3,14 @@ Multi-Exchange Volatility Harvesting Trading Bot API
 Main application file
 """
 import asyncio
-import os
+import uvicorn
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
-import uvicorn
 
-# Load environment variables
-load_dotenv()
-
-# Import API modules
 from api import bybit_router, binance_router, cryptocom_router
 from api.dependencies import traders, set_main_loop
 from api.config import save_api_config, load_api_config
@@ -28,6 +23,7 @@ from api.auth import (
 )
 from api.models import Token, User, ExchangesResponse
 
+load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

@@ -59,7 +59,7 @@ async def Fire_alert(bot_message: str, bot_token: str, bot_chatID: str):
         async with aiohttp.ClientSession() as session:
             url = f"https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={bot_chatID}&parse_mode=Markdown&text={msg}"
             async with session.get(url) as resp:
-                print("************************* allert sent")
+                print(f"INFO: ************************* alert sent, {resp.status}")
     except Exception as ex:
         print(f"ERROR: Fire_alert, {repr(traceback.extract_tb(ex.__traceback__))}")
 
@@ -106,7 +106,7 @@ def rotate_log_file(log_file: str, max_files: int = 5, max_size_mb: float = 10.0
     if log_path.exists():
         log_path.rename(f"{log_file}.1")
 
-    print(f"LOG ROTATED: {log_file} ({file_size_mb:.2f} MB)")
+    print(f"INFO: LOG ROTATED: {log_file} ({file_size_mb:.2f} MB)")
 
 
 class WSClient:
@@ -194,7 +194,7 @@ class WSClient:
 
         while 1:
             await self.initialize()
-            print(f"ws start: {self.stream_url}")
+            print(f"INFO: ws start: {self.stream_url}")
             try:
                 async with self.session.ws_connect(self.stream_url) as ws:
                     if need_auth:
@@ -770,7 +770,7 @@ class TradeAnalyse:
         real_revenue = round(self.trade_profit - real_amnt_old - real_fee * 2.0, 3)
 
         data = (
-            f"---------------Volatility harvesting------------\n"
+            "---------------Volatility harvesting------------\n"
             f"tg bot_chatID: {self.bot_chatID}\n"
             f"stable_pair: {STABLE_PAIR}\n"
             f"ATH: {self.ATH}\n"
@@ -797,7 +797,7 @@ class TradeAnalyse:
         if self.price_diff > 0.0:
             data += f"  revenue: {real_revenue} {self.pair[1]}\n"
 
-        data += f"------------------------------------------------------"
+        data += "------------------------------------------------------"
 
         print(data)
 
@@ -1202,11 +1202,11 @@ class Trader:
                 self.ta.trend_crossunder.cross = data["trend_crossunder"]
                 self.ta.order_scale._buy_counter = data["buy_counter"]
                 self.ta.order_scale._sell_counter = data["sell_counter"]
-                print(f"Load {self.state_file}: {data}")
+                print(f"INFO: Load {self.state_file}: {data}")
 
         except Exception as ex:
             self.init_new_states()
-            print(f"{ex.with_traceback(None)}")
+            print(f"ERROR: {ex.with_traceback(None)}")
 
     async def do_buy(self, qtty):
         counter = 0
