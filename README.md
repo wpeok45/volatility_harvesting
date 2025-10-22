@@ -2,20 +2,65 @@
 
 ![alt text](pnl.png)
 
-A Bybit API spot trading bot implementing volatility harvesting strategy with dynamic portfolio rebalancing.
+A multi-exchange spot trading bot implementing volatility harvesting strategy with dynamic portfolio rebalancing.
+
+## Supported Exchanges
+
+- ✅ **ByBit** - Fully implemented (`vh_float.py`, `api/bybit.py`)
+- 🔜 **Binance** - Coming soon (placeholder ready in `api/binance.py`)
+- 🔜 **Crypto.com** - Coming soon (placeholder ready in `api/cryptocom.py`)
+
+The bot uses a **modular architecture** via FastAPI with separate routers for each exchange, making it easy to add new exchanges. Each exchange maintains its own isolated data directory.
+
+## Project Structure
+
+```
+volatility_harvesting/
+├── api_main.py              # Main FastAPI application entry point
+├── run_app.py               # Application runner script
+├── vh_float.py              # ByBit spot trader implementation
+├── api/                     # Modular API structure
+│   ├── __init__.py          # Export all routers
+│   ├── models.py            # Pydantic models for requests/responses
+│   ├── auth.py              # OAuth2 authentication (Bearer token)
+│   ├── dependencies.py      # Shared state and utilities
+│   ├── config.py            # Configuration management
+│   ├── bybit.py             # ByBit exchange routes
+│   ├── binance.py           # Binance routes (placeholder)
+│   ├── cryptocom.py         # Crypto.com routes (placeholder)
+│   └── README.md            # API module documentation
+├── tests/                   # Test suite (pytest)
+│   ├── conftest.py          # Shared fixtures (client, auth headers)
+│   ├── STATUS.md            # Test status and documentation
+│   ├── api/                 # API endpoint tests
+│   │   ├── test_main.py     # Main endpoints (/, /exchanges)
+│   │   └── routes/          # Exchange-specific route tests
+│   │       ├── test_login.py   # Authentication tests
+│   │       └── test_bybit.py   # ByBit endpoint tests
+│   └── utils/               # Test utilities
+│       ├── utils.py         # Helper functions (random_email, get_token)
+│       └── trader.py        # Mock data generators
+├── data/                    # Production data (auto-created)
+│   ├── bybit/               # ByBit: trading.log, BTCUSDC.json, data_s1.dat
+│   ├── binance/             # Binance data directory
+│   └── cryptocom/           # Crypto.com data directory
+├── .github/                 # GitHub Actions workflows
+│   └── workflows/
+│       └── tests.yml        # Automated testing on push/PR
+├── api_config.json          # API state persistence (auto-generated)
+├── pyproject.toml           # Project configuration (uv)
+├── requirements.txt         # Python dependencies
+├── pytest.ini               # Pytest configuration
+├── .env                     # Configuration (copy from .env_example)
+└── docker-compose.yaml      # Docker configuration
+```
+
+See [api/README.md](api/README.md) for detailed API documentation.
 
 ## Installation
 
-Install required dependencies:
-
 ```bash
 pip install -r requirements.txt
-```
-
-Or using Python 3 explicitly:
-
-```bash
-python3 -m pip install -r requirements.txt
 ```
 
 ## Configuration
@@ -26,6 +71,8 @@ python3 -m pip install -r requirements.txt
    ```
 
 2. Edit `.env` file and configure the following parameters:
+
+   **Trading Configuration:**
    - `API_KEY` - Your Bybit API Key ([Get it here](https://www.bybit.com/app/user/api-management))
    - `SECRET_KEY` - Your Bybit API Secret
    - `STABLE_PAIR` - Stablecoin to use (default: USDT)
@@ -41,17 +88,56 @@ python3 -m pip install -r requirements.txt
    - `TGBOT_TOKEN` - Telegram bot token for notifications (optional)
    - `TGBOT_CHATID` - Telegram chat ID for notifications (optional)
 
+   **API Authentication (OAuth2):**
+   - `ADMIN_USERNAME` - API admin username (default: admin)
+   - `ADMIN_PASSWORD` - API admin password (**change this!**)
+   - `JWT_SECRET_KEY` - JWT secret key for token signing (**generate a strong random key!**)
+
 3. Ensure you have sufficient balance in your Bybit spot account
 
 ## Running the Bot
 
-### Using Python directly:
+### Method 1: Using FastAPI (Recommended - Multi-Exchange Support)
+
+Start the API server:
 
 ```bash
-python3 vh_float3.py
+python api_main.py
 ```
 
-### Using Docker:
+Or with uvicorn:
+
+```bash
+uvicorn api_main:app --host 0.0.0.0 --port 8000
+```
+
+The API features:
+- ✅ **OAuth2 Authentication**: Secure Bearer token authentication
+- ✅ **Auto-start**: Bots with `is_started=true` restart automatically after server restart
+- ✅ **State persistence**: Configuration saved to `api_config.json` on every change (this file is autogenerated)
+- ✅ **Isolated data**: Each exchange stores data in `data/<exchange_name>/` directory
+- ✅ **Modular routes**: Separate router files for each exchange in `api/` folder
+- ✅ **Response samples**: Complete request/response examples in documentation
+- ✅ **CORS enabled**: Unrestricted CORS for development (⚠️ restrict in production)
+
+
+#### Web Interface
+
+Access interactive documentation:
+- **API Docs (Swagger UI)**: http://localhost:8000/docs
+  - Click "Authorize" button and enter your credentials
+  - Test all endpoints interactively
+- **Alternative Docs (ReDoc)**: http://localhost:8000/redoc
+
+See [api/README.md](api/README.md) for complete API documentation.
+
+### Method 2: Using Python directly (ByBit only):
+
+```bash
+python vh_float.py
+```
+
+### Method 3: Using Docker:
 
 Build and run the container in detached mode:
 
@@ -74,9 +160,51 @@ docker compose down
 
 ## Monitoring
 
-- Console output shows real-time trading activity
-- `trading.log` file contains detailed trading history (automatically rotated at 10MB, keeps 5 backups)
-- Telegram notifications (if configured) provide trade alerts
+- **Console output**: Real-time trading activity
+- **Log files**: `data/<exchange>/trading.log` - detailed trading history (auto-rotated at 10MB, keeps 5 backups)
+- **State files**: `data/<exchange>/BTCUSDC.json` - current trading state
+- **Telegram notifications**: Trade alerts (if configured in `.env`)
+- **FastAPI endpoints**: Programmatic access to all trading data and controls (requires authentication)
+  - `POST /token` - Get access token (no auth required)
+  - `GET /bybit/status` - Bot status and running state
+  - `GET /bybit/balance` - Real-time account balance
+  - `GET /bybit/stats` - Trading statistics and analysis
+
+## API Architecture
+
+The project uses a **modular FastAPI architecture** for managing multiple exchanges:
+
+### Key Features
+
+- **🔐 OAuth2 Authentication**: Secure Bearer token authentication with JWT
+- **📦 Modular Design**: Each exchange has its own router file (`api/bybit.py`, `api/binance.py`, etc.)
+- **🎯 Pydantic Models**: Centralized request/response models in `api/models.py`
+- **🔄 Shared Dependencies**: Common utilities in `api/dependencies.py` (traders dict, event loop management)
+- **💾 Configuration Management**: Auto-save to `api_config.json` on every state change
+- **📁 Data Isolation**: Each exchange stores data in `data/<exchange_name>/` directory
+- **🚀 Auto-start**: Bots with `is_started=true` restart automatically after server restart
+- **⚙️ Task Management**: Proper cancellation of main loop + all background tasks (WebSockets, etc.)
+- **📚 Complete Documentation**: Request/response examples in Swagger UI and ReDoc
+- **🌐 CORS Enabled**: Unrestricted CORS for development (⚠️ configure properly for production)
+
+### Security Notes
+
+⚠️ **Important for Production:**
+- Change `ADMIN_PASSWORD` in `.env` to a strong password
+- Generate a strong `JWT_SECRET_KEY` (use: `openssl rand -hex 32`)
+- Restrict CORS origins in `api_main.py` (currently set to `["*"]`)
+- Use HTTPS in production
+- Consider rate limiting and additional security measures
+
+### Adding a New Exchange
+
+1. Create `api/exchange_name.py` with FastAPI router
+2. Define response models in `api/models.py` or create exchange-specific models
+3. Implement start/stop/status endpoints with authentication
+4. Add router to `api/__init__.py`
+5. Include router in `api_main.py`
+
+See [api/README.md](api/README.md) for step-by-step guide with code examples.
 
 --------------
 

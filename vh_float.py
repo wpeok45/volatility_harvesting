@@ -59,14 +59,14 @@ async def Fire_alert(bot_message: str, bot_token: str, bot_chatID: str):
         async with aiohttp.ClientSession() as session:
             url = f"https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={bot_chatID}&parse_mode=Markdown&text={msg}"
             async with session.get(url) as resp:
-                print("************************* allert sent")
+                print(f"INFO: ************************* alert sent, {resp.status}")
     except Exception as ex:
         print(f"ERROR: Fire_alert, {repr(traceback.extract_tb(ex.__traceback__))}")
 
 
-def log(data: str):
+def log(data: str, log_file: str = "trading.log"):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open("trading.log", mode="a", encoding="UTF-8") as f:
+    with open(log_file, mode="a", encoding="UTF-8") as f:
         print(f"[{timestamp}] {data}", file=f)
 
 
@@ -106,7 +106,7 @@ def rotate_log_file(log_file: str, max_files: int = 5, max_size_mb: float = 10.0
     if log_path.exists():
         log_path.rename(f"{log_file}.1")
 
-    print(f"LOG ROTATED: {log_file} ({file_size_mb:.2f} MB)")
+    print(f"INFO: LOG ROTATED: {log_file} ({file_size_mb:.2f} MB)")
 
 
 class WSClient:
@@ -191,10 +191,9 @@ class WSClient:
             await asyncio.sleep(20.0)
 
     async def start(self, subscribe: list, callback, need_auth=False):
-
         while 1:
             await self.initialize()
-            print(f"ws start: {self.stream_url}")
+            print(f"INFO: ws start: {self.stream_url}")
             try:
                 async with self.session.ws_connect(self.stream_url) as ws:
                     if need_auth:
@@ -552,7 +551,7 @@ class DynamicOrderScale:
 
 
 class TradeAnalyse:
-    def __init__(self, pair) -> None:
+    def __init__(self, pair, log_file: str = "trading.log") -> None:
         self.prices = deque(maxlen=60 * 60 * 24)
         self.diffs = deque(maxlen=3)
         self.diffs_pool = deque(maxlen=int(60 * 15))
@@ -573,13 +572,13 @@ class TradeAnalyse:
         self.buy_price_mean = 0.0
         self.local_range = 1000.0
         self.local_range_win = deque(maxlen=AMPLITUDE_TIME_FRAME)
-        self.ma_lenght = MA_LENGTH
-        self.gap = self.ma_lenght / 4.8
+        self.ma_length = MA_LENGTH
+        self.gap = self.ma_length / 4.8
         self.ma_fast = 0.0
         self.ma_fast_m = 0.0
         self.ma_trend = 0.0
         self.ma_trend_prev = 10000000.0
-        self.ma_trend_win = deque(maxlen=int(self.ma_lenght))
+        self.ma_trend_win = deque(maxlen=int(self.ma_length))
         self.trend_crossover = Crossover()
         self.trend_crossunder = Crossunder()
         self.rebalance_top = REBALANCE_TOP
@@ -589,9 +588,10 @@ class TradeAnalyse:
         self.order_scale.enabled = REBALANCE_ISDYNAMIC
         self.fee = FEE / 100.0  # 0.1% = 0.001
         self.ATH = 999000.0
-        self.work_range = self.ATH / 100.0 * RANGE
-        self.ratio_per_point = 1.0 / self.work_range
+        self.working_range = self.ATH / 100.0 * RANGE
+        self.ratio_per_point = 1.0 / self.working_range
         self.min_max_ratio = [MIN_RATIO, MAX_RATIO]
+        self.log_file = log_file
         self.real_ratio = 0.0
         self.portfolio_ratio = self.min_max_ratio[0]
         self.percent_diff = 0.0
@@ -700,8 +700,8 @@ class TradeAnalyse:
         if price > self.ATH:
             self.ATH = price
 
-        self.work_range = self.ATH / 100.0 * RANGE
-        self.ratio_per_point = 1.0 / self.work_range
+        self.working_range = self.ATH / 100.0 * RANGE
+        self.ratio_per_point = 1.0 / self.working_range
 
         ratio += (self.prices[-2] - price) * self.ratio_per_point
 
@@ -730,7 +730,7 @@ class TradeAnalyse:
         #     return
 
         min_profitable_range = self.get_profitable_range(price)
-        one_percent_pips = self.work_range / 100.0
+        one_percent_pips = self.working_range / 100.0
         self.min_profitable_percent = min_profitable_range / one_percent_pips
 
         if self.rebalance_top < self.min_profitable_percent:
@@ -746,7 +746,7 @@ class TradeAnalyse:
         buy_pips = round(one_percent_pips * self.rebalance_bottom, 2)
 
         total = self.native_balance[0] * price + self.native_balance[1]
-        price_for_pips = total / self.work_range
+        price_for_pips = total / self.working_range
 
         one_percent_amnt = round(price_for_pips * one_percent_pips, 2)
         sell_amnt = round(price_for_pips * sell_pips, 2)
@@ -769,12 +769,12 @@ class TradeAnalyse:
         real_revenue = round(self.trade_profit - real_amnt_old - real_fee * 2.0, 3)
 
         data = (
-            f"---------------Volatility harvesting------------\n"
+            "---------------Volatility harvesting------------\n"
             f"tg bot_chatID: {self.bot_chatID}\n"
             f"stable_pair: {STABLE_PAIR}\n"
             f"ATH: {self.ATH}\n"
             f"ma_length: {MA_LENGTH}\n"
-            f"range: {RANGE}% ({int(self.work_range)}) pips, lower price limit: {int(price - self.native_balance[1] / price_for_pips)} {self.pair[1]}\n"
+            f"range: {RANGE}% ({int(self.working_range)}) pips, lower price limit: {int(price - self.native_balance[1] / price_for_pips)} {self.pair[1]}\n"
             f"ratio per pip: {self.ratio_per_point:.8f}\n"
             f"pip cost: {round(price_for_pips, 2)} {self.pair[1]}\n"
             f"min_ratio: {MIN_RATIO} ({float(MIN_RATIO) * 100.0}%)\n"
@@ -796,7 +796,7 @@ class TradeAnalyse:
         if self.price_diff > 0.0:
             data += f"  revenue: {real_revenue} {self.pair[1]}\n"
 
-        data += f"------------------------------------------------------"
+        data += "------------------------------------------------------"
 
         print(data)
 
@@ -813,7 +813,7 @@ class TradeAnalyse:
             self.local_range_win.append(price)
             self.ma_trend = round(self.sma(self.ma_trend_win, price), 2) - self.gap
             self.ma_fast_m = round(
-                self.ema(int(self.ma_lenght), self.ma_fast_m, price), 2
+                self.ema(int(self.ma_length), self.ma_fast_m, price), 2
             )
             return
 
@@ -823,7 +823,7 @@ class TradeAnalyse:
             )
 
             if change:
-                rotate_log_file("trading.log", max_files=5, max_size_mb=10.0)
+                rotate_log_file(self.log_file, max_files=5, max_size_mb=10.0)
                 self.local_range_win.append(price)
                 self.local_range = int(
                     max(self.local_range_win) - min(self.local_range_win)
@@ -832,7 +832,7 @@ class TradeAnalyse:
                 self.ma_trend_prev = self.ma_trend
                 self.ma_trend = round(self.sma(self.ma_trend_win, price), 2) - self.gap
                 self.ma_fast_m = round(
-                    self.ema(int(self.ma_lenght), self.ma_fast_m, price), 2
+                    self.ema(int(self.ma_length), self.ma_fast_m, price), 2
                 )
 
             if self.pair_balance and self.traded_price != 0.0 and self.ATH != 999000.0:
@@ -842,9 +842,9 @@ class TradeAnalyse:
 
             data = (
                 f"{int(price)}, "
-                f"impuls {self.diffs_pool.maxlen/60}m: {self.impuls}|{self.impuls_harmonic} ({self.impuls_percent}%|{self.impuls_harmonic_percent}%), "
+                f"impuls {self.diffs_pool.maxlen / 60}m: {self.impuls}|{self.impuls_harmonic} ({self.impuls_percent}%|{self.impuls_harmonic_percent}%), "
                 f"spot cost: {round(self.buy_price_mean, 1)}, "
-                f"pnl: {round(self.native_balance[0]*price - self.native_balance[0]*self.buy_price_mean, 1)} {self.pair[1]}, "
+                f"pnl: {round(self.native_balance[0] * price - self.native_balance[0] * self.buy_price_mean, 1)} {self.pair[1]}, "
                 f"trend: {round(self.ma_trend - self.ma_trend_prev, 1)}, EMA:{round(self.ma_fast_m - self.ma_trend, 1)}, "
                 f"spread: {round(abs(self.price_diff), 2)} > local range: {self.local_range}, "
                 f"target ratio: {round(self.portfolio_ratio * 100.0, 2)}%, "
@@ -852,11 +852,13 @@ class TradeAnalyse:
             )
 
             print(data)
-            log(data)
+            log(data, self.log_file)
 
 
 class Trader:
-    def __init__(self, loop: asyncio.AbstractEventLoop, key, secret) -> None:
+    def __init__(
+        self, loop: asyncio.AbstractEventLoop, key, secret, data_dir: str = "data"
+    ) -> None:
         self.loop = loop  # asyncio.get_running_loop()
         self.key = key
         self.secret = secret
@@ -864,9 +866,18 @@ class Trader:
         self.pair = ["BTC", STABLE_PAIR]
         self.symbol = "".join(self.pair)
         self.last_price = 0.0
-        self.ta = TradeAnalyse(self.pair)
         self.minOrderQty = 0.000198
         self.minOrderAmt = 10.0
+        self.data_dir = Path(data_dir)
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+
+        # File paths for data storage
+        self.log_file = str(self.data_dir / "trading.log")
+        self.data_file = str(self.data_dir / "data_s1.dat")
+        self.state_file = str(self.data_dir / f"{self.symbol}.json")
+
+        # Initialize TradeAnalyse with log file
+        self.ta = TradeAnalyse(self.pair, log_file=self.log_file)
 
     async def init_data(self):
         self.client = Client(
@@ -942,7 +953,7 @@ class Trader:
         header = arr.array("L", [])
         data_s1 = arr.array("d", [])
         try:
-            with open("data_s1.dat", "rb") as f:
+            with open(self.data_file, "rb") as f:
                 header.fromfile(f, 1)
                 data_s1.fromfile(f, header[0])
 
@@ -961,7 +972,6 @@ class Trader:
             print(f"{repr(traceback.extract_tb(ex.__traceback__))}")
 
     async def account_balance_loop(self):
-
         while True:
             await self.get_account_balance()
             await asyncio.sleep(22.0)
@@ -1034,7 +1044,6 @@ class Trader:
         if "topic" in msg:
             match msg["topic"]:
                 case "wallet":
-
                     if "data" not in msg:
                         return
 
@@ -1065,7 +1074,7 @@ class Trader:
                     )
 
                     print(out)
-                    log(out)
+                    log(out, self.log_file)
                 case _:
                     pass
 
@@ -1123,7 +1132,7 @@ class Trader:
                 self.save_states()
                 self.loop.create_task(
                     Fire_alert(
-                        bot_message=f"S: {self.ta.traded_price}, {round(qtty* price, 2)}, mean: {self.ta.buy_price_mean}",
+                        bot_message=f"S: {self.ta.traded_price}, {round(qtty * price, 2)}, mean: {self.ta.buy_price_mean}",
                         bot_token=self.ta.bot_token,
                         bot_chatID=self.ta.bot_chatID,
                     ),
@@ -1158,7 +1167,7 @@ class Trader:
         data["buy_counter"] = self.ta.order_scale.buy_counter
         data["sell_counter"] = self.ta.order_scale.sell_counter
 
-        with open(f"{self.symbol}.json", "w") as f:
+        with open(self.state_file, "w") as f:
             json.dump(data, f, indent=4)
 
     def init_new_states(self):
@@ -1181,7 +1190,7 @@ class Trader:
 
     def load_states(self):
         try:
-            with open(f"{self.symbol}.json", "r") as f:
+            with open(self.state_file, "r") as f:
                 data = json.load(f)
                 self.ta.traded_price = data["traded_price"]
                 self.ta.buy_price_mean = data["buy_price_mean"]
@@ -1190,11 +1199,11 @@ class Trader:
                 self.ta.trend_crossunder.cross = data["trend_crossunder"]
                 self.ta.order_scale._buy_counter = data["buy_counter"]
                 self.ta.order_scale._sell_counter = data["sell_counter"]
-                print(f"Load states.json: {data}")
+                print(f"INFO: Load {self.state_file}: {data}")
 
         except Exception as ex:
             self.init_new_states()
-            print(f"{ex.with_traceback(None)}")
+            print(f"ERROR: {ex.with_traceback(None)}")
 
     async def do_buy(self, qtty):
         counter = 0
@@ -1220,7 +1229,7 @@ class Trader:
                 else:
                     break
             except Exception as e:
-                print(f"ERROR: do_buy, {e.with_traceback(__tb = sys.exc_info()[2])}")
+                print(f"ERROR: do_buy, {e.with_traceback(__tb=sys.exc_info()[2])}")
                 await asyncio.sleep(1.1)
 
     async def do_sell(self, qtty):
@@ -1246,7 +1255,7 @@ class Trader:
                 else:
                     break
             except Exception as e:
-                print(f"ERROR: do_sell(), {e.with_traceback(__tb = sys.exc_info()[2])}")
+                print(f"ERROR: do_sell(), {e.with_traceback(__tb=sys.exc_info()[2])}")
                 await asyncio.sleep(1.1)
 
     async def buy_signal(self):
@@ -1287,7 +1296,7 @@ class Trader:
         while True:
             data_s1 = arr.array("d", self.ta.prices)
             header: arr.array = arr.array("L", [len(data_s1)])
-            with open("data_s1.dat", "wb") as f:
+            with open(self.data_file, "wb") as f:
                 header.tofile(f)
                 data_s1.tofile(f)
 

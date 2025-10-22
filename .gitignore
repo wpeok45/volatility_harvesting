@@ -1,5 +1,6 @@
 # Python-generated files
 __pycache__/
+.pytest_cache/
 *.py[oc]
 build/
 dist/
@@ -8,7 +9,7 @@ wheels/
 
 # IDE files
 .vscode
-
+prompt.txt
 # Virtual environments
 .venv
 .python-version
@@ -17,8 +18,15 @@ wheels/
 .env
 
 # production files
+data/
 *.json
 *.dat
 *.log
 *.log.*
 !*.log.*[^0-9]*
+
+# Tests reports and coverage
+htmlcov/
+.coverage
+coverage.xml
+.cache
