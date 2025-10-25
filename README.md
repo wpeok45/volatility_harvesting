@@ -10,7 +10,7 @@
 
 ![alt text](pnl.png)
 
-A multi-exchange spot trading bot implementing volatility harvesting strategy with dynamic portfolio rebalancing.
+A multi-exchange spot trading bot implementing [volatility harvesting strategy](#strategy-overview) with dynamic portfolio rebalancing.
 
 ## Supported Exchanges
 
